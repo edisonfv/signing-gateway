@@ -3,7 +3,7 @@
 Microservicio aislado que emite certificados de firma electrónica para el SaaS.
 Hoy integra FirmaSeguraEC (Flujo por API); está diseñado para sumar otros proveedores.
 
-El diseño completo está en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
+El diseño completo está en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md). La guía para integrar el SaaS está en [docs/INTEGRACION_SAAS.md](docs/INTEGRACION_SAAS.md).
 
 ## Stack
 
