@@ -522,10 +522,10 @@
     "semantic_hash": "bde1aa1027f0448f17348dbd93f3d7ea"
   },
   "config/gateway.php": {
-    "mtime": 1792722765.0887482,
-    "seen": 1792726352.2447135,
-    "ast_hash": "36f225f022ad13807d489e9a18c132e6",
-    "semantic_hash": "36f225f022ad13807d489e9a18c132e6"
+    "mtime": 1792730349.420761,
+    "seen": 1792730450.2841053,
+    "ast_hash": "9067cd987742176cb0e78339b911bb60",
+    "semantic_hash": ""
   },
   "config/logging.php": {
     "mtime": 1792722785.227784,
@@ -768,10 +768,10 @@
     "semantic_hash": ""
   },
   "docs/ARQUITECTURA.md": {
-    "mtime": 1792722932.307799,
-    "seen": 1792726352.244735,
-    "ast_hash": "b8df954ee4b0490a307163eb10d6de33",
-    "semantic_hash": "b8df954ee4b0490a307163eb10d6de33"
+    "mtime": 1792730447.6494763,
+    "seen": 1792730450.2841315,
+    "ast_hash": "8d338aeb6d7b3434eea9fc95e3c0b4f9",
+    "semantic_hash": ""
   },
   "app/Actions/CreateSignatureSession.php": {
     "mtime": 1792729761.3300562,
@@ -888,15 +888,15 @@
     "semantic_hash": ""
   },
   "app/Rules/EcuadorianIdentification.php": {
-    "mtime": 1792729596.1041415,
-    "seen": 1792729838.8838406,
-    "ast_hash": "ebb8c9d2658be973b7f9a51acb61fe1f",
+    "mtime": 1792730349.4463358,
+    "seen": 1792730450.2840753,
+    "ast_hash": "40bc44bde9b5abcb4468c6796ba74f76",
     "semantic_hash": ""
   },
   "app/Rules/EcuadorianRuc.php": {
-    "mtime": 1792729596.194148,
-    "seen": 1792729838.883841,
-    "ast_hash": "463d308346bafa8a21f96b901886e569",
+    "mtime": 1792730349.467342,
+    "seen": 1792730450.2840762,
+    "ast_hash": "1a340703cc2656318a185a37b3225f5a",
     "semantic_hash": ""
   },
   "app/Signing/ApiFlow/TermsCatalog.php": {
@@ -960,9 +960,9 @@
     "semantic_hash": ""
   },
   "tests/Feature/SignatureSessionFlowTest.php": {
-    "mtime": 1792729702.6996126,
-    "seen": 1792729838.8838959,
-    "ast_hash": "fc928085edb19bfdc155689668113fdb",
+    "mtime": 1792730359.5633695,
+    "seen": 1792730450.284128,
+    "ast_hash": "3e65080e5291701ef3bec889581bf6e7",
     "semantic_hash": ""
   },
   "tests/Unit/EcuadorianIdentificationTest.php": {
