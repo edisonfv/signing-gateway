@@ -2,7 +2,7 @@
 
 namespace App\Signing\Drivers\FirmaSegura\Enums;
 
-use App\Enums\ScreamingSnakeEnum;
+use Spatie\Enum\Laravel\Enum;
 
 /**
  * Estados de solicitud de Tercero Vinculado.
@@ -18,8 +18,22 @@ use App\Enums\ScreamingSnakeEnum;
  * @method static self validating()
  * @method static self revoked()
  */
-final class LinkedPartnerStatus extends ScreamingSnakeEnum
+final class LinkedPartnerStatus extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'registered' => 'REGISTERED',
+            'error' => 'ERROR',
+            'generated' => 'GENERATED',
+            'sent' => 'SENT',
+            'refused' => 'REFUSED',
+            'canceled' => 'CANCELED',
+            'validating' => 'VALIDATING',
+            'revoked' => 'REVOKED',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [

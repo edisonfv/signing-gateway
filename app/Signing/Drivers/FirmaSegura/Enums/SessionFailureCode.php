@@ -2,7 +2,7 @@
 
 namespace App\Signing\Drivers\FirmaSegura\Enums;
 
-use App\Enums\ScreamingSnakeEnum;
+use Spatie\Enum\Laravel\Enum;
 
 /**
  * Errores técnicos de sesión (evento session.error).
@@ -14,8 +14,18 @@ use App\Enums\ScreamingSnakeEnum;
  * @method static self contractGenerationFailed()
  * @method static self sendFailed()
  */
-final class SessionFailureCode extends ScreamingSnakeEnum
+final class SessionFailureCode extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'passwordEncryptionFailed' => 'PASSWORD_ENCRYPTION_FAILED',
+            'certificateGenerationFailed' => 'CERTIFICATE_GENERATION_FAILED',
+            'contractGenerationFailed' => 'CONTRACT_GENERATION_FAILED',
+            'sendFailed' => 'SEND_FAILED',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [

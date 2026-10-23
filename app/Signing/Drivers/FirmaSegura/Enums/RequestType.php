@@ -2,7 +2,7 @@
 
 namespace App\Signing\Drivers\FirmaSegura\Enums;
 
-use App\Enums\ScreamingSnakeEnum;
+use Spatie\Enum\Laravel\Enum;
 
 /**
  * Origen de una solicitud consultada por estado.
@@ -12,8 +12,16 @@ use App\Enums\ScreamingSnakeEnum;
  * @method static self linkedPartnerRequest()
  * @method static self regularRequest()
  */
-final class RequestType extends ScreamingSnakeEnum
+final class RequestType extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'linkedPartnerRequest' => 'LINKED_PARTNER_REQUEST',
+            'regularRequest' => 'REGULAR_REQUEST',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [

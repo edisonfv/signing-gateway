@@ -2,7 +2,7 @@
 
 namespace App\Signing\Drivers\FirmaSegura\Enums;
 
-use App\Enums\ScreamingSnakeEnum;
+use Spatie\Enum\Laravel\Enum;
 
 /**
  * Etapas de sesión, en orden.
@@ -15,8 +15,19 @@ use App\Enums\ScreamingSnakeEnum;
  * @method static self confirmation()
  * @method static self certificate()
  */
-final class SessionStage extends ScreamingSnakeEnum
+final class SessionStage extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'validation' => 'VALIDATION',
+            'initialization' => 'INITIALIZATION',
+            'biometric' => 'BIOMETRIC',
+            'confirmation' => 'CONFIRMATION',
+            'certificate' => 'CERTIFICATE',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [

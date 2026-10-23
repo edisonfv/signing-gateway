@@ -24,7 +24,7 @@ class IssueApiClientCredentials
      * @param  array<int, string>  $allowedIps
      * @return array{client: ApiClient, token: string, signing_secret: string, notification_secret: string}
      */
-    public function __invoke(Tenant $tenant, string $name, array $allowedIps = [], ?string $deliveryPublicKey = null): array
+    public function __invoke(Tenant $tenant, string $name, array $allowedIps = [], ?string $deliveryPublicKey = null, ?string $notificationUrl = null): array
     {
         if ($deliveryPublicKey !== null && ! SealedBox::isValidPublicKey($deliveryPublicKey)) {
             throw new InvalidArgumentException('La llave pública de entrega debe ser una llave X25519 en base64 (32 bytes).');
@@ -33,13 +33,14 @@ class IssueApiClientCredentials
         $signingSecret = Str::random(64);
         $notificationSecret = Str::random(64);
 
-        return DB::transaction(function () use ($tenant, $name, $allowedIps, $deliveryPublicKey, $signingSecret, $notificationSecret) {
+        return DB::transaction(function () use ($tenant, $name, $allowedIps, $deliveryPublicKey, $notificationUrl, $signingSecret, $notificationSecret) {
             $client = ApiClient::create([
                 'tenant_id' => $tenant->getKey(),
                 'name' => $name,
                 'signing_secret' => $signingSecret,
                 'notification_secret' => $notificationSecret,
                 'delivery_public_key' => $deliveryPublicKey,
+                'notification_url' => $notificationUrl,
                 'allowed_ips' => $allowedIps ?: null,
             ]);
 

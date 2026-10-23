@@ -2,7 +2,7 @@
 
 namespace App\Signing\Drivers\FirmaSegura\Enums;
 
-use App\Enums\ScreamingSnakeEnum;
+use Spatie\Enum\Laravel\Enum;
 
 /**
  * Tipos de certificado de Tercero Vinculado.
@@ -12,8 +12,16 @@ use App\Enums\ScreamingSnakeEnum;
  * @method static self transactionalSignature()
  * @method static self traditionalSignature()
  */
-final class LinkedPartnerCertificateType extends ScreamingSnakeEnum
+final class LinkedPartnerCertificateType extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'transactionalSignature' => 'TRANSACTIONAL_SIGNATURE',
+            'traditionalSignature' => 'TRADITIONAL_SIGNATURE',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [

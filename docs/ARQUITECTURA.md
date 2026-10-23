@@ -690,8 +690,7 @@ Los enums **del dominio** viven en `app/Enums`. Los **específicos del proveedor
 |---|---|---|
 | `ApplicationType` | `NATURAL_PERSON`, `NATURAL_PERSON_RUC`, `LEGAL_REPRESENTATIVE` | dominio |
 | `CertificatePeriod` | `ONE_WEEK`, `ONE_MONTH`, `ONE_YEAR`, `TWO_YEARS`, `THREE_YEARS`, `FOUR_YEARS`, `FIVE_YEARS` (+ `ONE_DAY` en Tercero Vinculado) con `labels()` "1 SEMANA"… | dominio |
-| `Province` | 24 provincias | dominio |
-| `City` | 234 ciudades, con `province()` | dominio |
+| ~~`Province` / `City`~~ | **Decidido 2026-10-23:** tablas `provinces` y `cities` (UUID), cargadas por `ProvinceSeeder` desde el JSON del proveedor; API `GET /v1/provinces` y `GET /v1/provinces/{id}/cities` | base de datos |
 | `TermsType` | `TRADITIONAL_SIGNATURE` | proveedor |
 | `SessionStatus` / `SessionStage` | los listados en §16.2 | proveedor |
 | `SessionErrorCode` | `UNDERAGE_CITIZEN`, `INELIGIBLE_CITIZEN_STATUS`, `EXPIRED_IDENTIFICATION`, `TASK_ALREADY_COMPLETED`, `TASK_ORDER_VIOLATION`, `WEAK_PASSWORD`, `DUPLICATE_REFERENCE_TRANSACTION` | proveedor |
@@ -707,7 +706,7 @@ Los enums **del dominio** viven en `app/Enums`. Los **específicos del proveedor
 | `RequestType` | `LINKED_PARTNER_REQUEST`, `REGULAR_REQUEST` | proveedor |
 | Internos | `Provider`, `Environment`, `ProductType`, `RequestStatus`, `SessionStep`, `DeliveryMode`, `Permission`, `Role`, `ApiClientScope` | dominio |
 
-**Ciudades con nombre repetido entre provincias:** BOLÍVAR (Carchi y Manabí), OLMEDO (Loja y Manabí), LA CONCORDIA (Esmeraldas y Santo Domingo), y PICHINCHA, que es también ciudad de Manabí. Para que los valores sean únicos, `City` usa nombres de método por provincia (`carchiBolivar()`, `manabiBolivar()`) con valor `"CARCHI:BOLÍVAR"`, y expone `providerName()` (`"BOLÍVAR"`) y `province()`. El enum **se genera con un comando** (`gateway:sync-catalogs`) a partir de la documentación, no a mano, y un test valida que cada ciudad sea aceptada en sandbox.
+**Ciudades con nombre repetido entre provincias** (resuelto en BD con `unique(province_id, name)`): BOLÍVAR (Carchi y Manabí), OLMEDO (Loja y Manabí), LA CONCORDIA (Esmeraldas y Santo Domingo), y PICHINCHA, que es también ciudad de Manabí. Para que los valores sean únicos, `City` usa nombres de método por provincia (`carchiBolivar()`, `manabiBolivar()`) con valor `"CARCHI:BOLÍVAR"`, y expone `providerName()` (`"BOLÍVAR"`) y `province()`. El enum **se genera con un comando** (`gateway:sync-catalogs`) a partir de la documentación, no a mano, y un test valida que cada ciudad sea aceptada en sandbox.
 
 Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `TransformsEnums`, y los modelos, casts a enums spatie.
 

@@ -2,7 +2,7 @@
 
 namespace App\Signing\Drivers\FirmaSegura\Enums;
 
-use App\Enums\ScreamingSnakeEnum;
+use Spatie\Enum\Laravel\Enum;
 
 /**
  * Códigos de error de los pasos del Flujo por API.
@@ -17,8 +17,21 @@ use App\Enums\ScreamingSnakeEnum;
  * @method static self weakPassword()
  * @method static self duplicateReferenceTransaction()
  */
-final class SessionErrorCode extends ScreamingSnakeEnum
+final class SessionErrorCode extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'underageCitizen' => 'UNDERAGE_CITIZEN',
+            'ineligibleCitizenStatus' => 'INELIGIBLE_CITIZEN_STATUS',
+            'expiredIdentification' => 'EXPIRED_IDENTIFICATION',
+            'taskAlreadyCompleted' => 'TASK_ALREADY_COMPLETED',
+            'taskOrderViolation' => 'TASK_ORDER_VIOLATION',
+            'weakPassword' => 'WEAK_PASSWORD',
+            'duplicateReferenceTransaction' => 'DUPLICATE_REFERENCE_TRANSACTION',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [

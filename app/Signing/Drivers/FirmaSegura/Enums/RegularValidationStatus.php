@@ -2,7 +2,7 @@
 
 namespace App\Signing\Drivers\FirmaSegura\Enums;
 
-use App\Enums\ScreamingSnakeEnum;
+use Spatie\Enum\Laravel\Enum;
 
 /**
  * Estados de validación de Firmas Regulares.
@@ -16,8 +16,20 @@ use App\Enums\ScreamingSnakeEnum;
  * @method static self refused()
  * @method static self completed()
  */
-final class RegularValidationStatus extends ScreamingSnakeEnum
+final class RegularValidationStatus extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'pending' => 'PENDING',
+            'manuallyValidating' => 'MANUALLY_VALIDATING',
+            'automaticallyValidating' => 'AUTOMATICALLY_VALIDATING',
+            'error' => 'ERROR',
+            'refused' => 'REFUSED',
+            'completed' => 'COMPLETED',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [

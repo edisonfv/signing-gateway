@@ -2,7 +2,7 @@
 
 namespace App\Signing\Drivers\FirmaSegura\Enums;
 
-use App\Enums\ScreamingSnakeEnum;
+use Spatie\Enum\Laravel\Enum;
 
 /**
  * Motivos de rechazo de sesión (evento session.rejected).
@@ -13,8 +13,17 @@ use App\Enums\ScreamingSnakeEnum;
  * @method static self dataRejectedByUser()
  * @method static self otpTotalLimitExceeded()
  */
-final class SessionRejectionCode extends ScreamingSnakeEnum
+final class SessionRejectionCode extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'faceLivenessExhausted' => 'FACE_LIVENESS_EXHAUSTED',
+            'dataRejectedByUser' => 'DATA_REJECTED_BY_USER',
+            'otpTotalLimitExceeded' => 'OTP_TOTAL_LIMIT_EXCEEDED',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [

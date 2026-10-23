@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\IpUtils;
  *
  * El tenant se deduce siempre del token autenticado, nunca de la petición.
  */
-#[Fillable(['tenant_id', 'name', 'signing_secret', 'notification_secret', 'delivery_public_key', 'allowed_ips', 'revoked_at'])]
+#[Fillable(['tenant_id', 'name', 'signing_secret', 'notification_secret', 'notification_url', 'delivery_public_key', 'allowed_ips', 'revoked_at'])]
 #[Hidden(['signing_secret', 'notification_secret'])]
 class ApiClient extends Authenticatable
 {

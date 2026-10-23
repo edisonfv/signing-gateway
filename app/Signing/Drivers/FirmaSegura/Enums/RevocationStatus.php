@@ -2,7 +2,7 @@
 
 namespace App\Signing\Drivers\FirmaSegura\Enums;
 
-use App\Enums\ScreamingSnakeEnum;
+use Spatie\Enum\Laravel\Enum;
 
 /**
  * Estados de revocación.
@@ -13,8 +13,17 @@ use App\Enums\ScreamingSnakeEnum;
  * @method static self approved()
  * @method static self rejected()
  */
-final class RevocationStatus extends ScreamingSnakeEnum
+final class RevocationStatus extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'registered' => 'REGISTERED',
+            'approved' => 'APPROVED',
+            'rejected' => 'REJECTED',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [

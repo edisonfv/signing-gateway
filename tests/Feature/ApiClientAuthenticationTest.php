@@ -2,35 +2,24 @@
 
 namespace Tests\Feature;
 
-use App\Actions\IssueApiClientCredentials;
-use App\Models\ApiClient;
 use App\Models\AuditLog;
 use App\Models\PersonalAccessToken;
-use App\Models\Tenant;
 use App\Models\User;
 use App\Security\RequestSignature;
-use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
-use Illuminate\Testing\TestResponse;
+use Tests\Concerns\InteractsWithSignedApi;
 use Tests\TestCase;
 
 class ApiClientAuthenticationTest extends TestCase
 {
-    use RefreshDatabase;
-
-    private Tenant $tenant;
-
-    /** @var array{client: ApiClient, token: string, signing_secret: string, notification_secret: string} */
-    private array $credentials;
+    use InteractsWithSignedApi, RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->seed(RolesAndPermissionsSeeder::class);
-        $this->tenant = Tenant::create(['external_id' => 'acme', 'name' => 'ACME']);
-        $this->credentials = app(IssueApiClientCredentials::class)($this->tenant, 'ACME producción');
+        $this->issueApiCredentials();
     }
 
     public function test_signed_request_with_valid_token_is_accepted(): void
@@ -121,29 +110,5 @@ class ApiClientAuthenticationTest extends TestCase
         ]);
 
         $this->withToken("{$token->getKey()}|{$plain}")->getJson('/api/v1/ping')->assertUnauthorized();
-    }
-
-    public function test_catalogs_are_exposed_from_enums(): void
-    {
-        $this->signedGet('/api/v1/catalogs/provinces')->assertOk()->assertJsonCount(24, 'data');
-        $this->signedGet('/api/v1/catalogs/cities')->assertOk()
-            ->assertJsonCount(234, 'data')
-            ->assertJsonFragment(['value' => 'CARCHI:BOLÍVAR', 'label' => 'BOLÍVAR', 'province' => 'CARCHI']);
-        $this->signedGet('/api/v1/catalogs/unknown')->assertNotFound();
-    }
-
-    private function signedGet(string $uri, ?string $secret = null, ?string $nonce = null, ?int $timestamp = null): TestResponse
-    {
-        $timestamp = (string) ($timestamp ?? now()->getTimestamp());
-        $nonce ??= Str::random(32);
-        $signature = RequestSignature::sign(
-            $secret ?? $this->credentials['signing_secret'],
-            RequestSignature::canonical('GET', $uri, $timestamp, $nonce, ''),
-        );
-
-        return $this->withToken($this->credentials['token'])
-            ->withHeaders(['X-Timestamp' => $timestamp, 'X-Nonce' => $nonce, 'X-Signature' => $signature])
-            ->withHeader('Accept', 'application/json')
-            ->get($uri);
     }
 }

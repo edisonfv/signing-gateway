@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AssignRequestContext;
 use App\Http\Middleware\EnsureActiveApiClient;
 use App\Http\Middleware\VerifyRequestSignature;
 use Illuminate\Foundation\Application;
@@ -17,6 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(AssignRequestContext::class);
+
         $middleware->alias([
             'abilities' => CheckAbilities::class,
             'ability' => CheckForAnyAbility::class,

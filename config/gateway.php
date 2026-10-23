@@ -14,6 +14,12 @@
 
 return [
 
+    // Ambiente de proveedor que usa esta instancia: sandbox | production.
+    'environment' => env('GATEWAY_PROVIDER_ENVIRONMENT', 'sandbox'),
+
+    // Driver por defecto de SignatureProviderManager.
+    'default_provider' => env('GATEWAY_DEFAULT_PROVIDER', 'firmasegura'),
+
     'keys' => [
         // Cifra el p12 y los secretos de proveedores y clientes (bóveda). Distinta de APP_KEY.
         'vault' => env('GATEWAY_VAULT_KEY'),

@@ -2,8 +2,12 @@
 
 namespace App\Enums;
 
+use Spatie\Enum\Laravel\Enum;
+
 /**
- * Vigencias del certificado. ONE_DAY solo aplica a la firma transaccional de Tercero Vinculado.
+ * Vigencia del certificado. ONE_DAY solo aplica a la firma transaccional de Tercero Vinculado.
+ *
+ * Fuente: https://docs.firmaseguraec.com/lista-de-periodos-de-firmas-1820346m0
  *
  * @method static self oneDay()
  * @method static self oneWeek()
@@ -14,8 +18,22 @@ namespace App\Enums;
  * @method static self fourYears()
  * @method static self fiveYears()
  */
-final class CertificatePeriod extends ScreamingSnakeEnum
+final class CertificatePeriod extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'oneDay' => 'ONE_DAY',
+            'oneWeek' => 'ONE_WEEK',
+            'oneMonth' => 'ONE_MONTH',
+            'oneYear' => 'ONE_YEAR',
+            'twoYears' => 'TWO_YEARS',
+            'threeYears' => 'THREE_YEARS',
+            'fourYears' => 'FOUR_YEARS',
+            'fiveYears' => 'FIVE_YEARS',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [

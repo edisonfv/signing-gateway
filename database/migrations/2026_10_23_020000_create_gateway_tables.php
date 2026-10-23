@@ -28,6 +28,7 @@ return new class extends Migration
             $table->string('name');
             $table->text('signing_secret')->comment('Secreto HMAC, cifrado con la llave de la bóveda');
             $table->text('notification_secret')->comment('Secreto para firmar notificaciones al SaaS, cifrado');
+            $table->string('notification_url')->nullable()->comment('Endpoint del SaaS que recibe las notificaciones firmadas');
             $table->text('delivery_public_key')->nullable()->comment('Llave pública X25519 (base64) para sellar certificados');
             $table->json('allowed_ips')->nullable()->comment('IPs o CIDR permitidos; null = cualquiera dentro de la red interna');
             $table->timestamp('last_used_at')->nullable();

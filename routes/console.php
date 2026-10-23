@@ -1,8 +1,21 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use App\Models\CertificateVaultEntry;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+/*
+| Tareas de mantenimiento. onOneServer() requiere un cache store con locks atómicos
+| compartido entre nodos (database o redis).
+*/
+
+// Vacía p12 y contraseñas ya entregados o vencidos (CertificateVaultEntry::prunable()).
+Schedule::command('model:prune', ['--model' => [CertificateVaultEntry::class]])
+    ->everyFifteenMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(10);
+
+// Elimina tokens Sanctum vencidos hace más de 24 h.
+Schedule::command('sanctum:prune-expired --hours=24')->daily()->onOneServer();
+
+Schedule::command('queue:prune-batches --hours=48')->daily()->onOneServer();
+Schedule::command('queue:prune-failed --hours=720')->daily()->onOneServer();

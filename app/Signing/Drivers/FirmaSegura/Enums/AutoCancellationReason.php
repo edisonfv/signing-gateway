@@ -2,7 +2,7 @@
 
 namespace App\Signing\Drivers\FirmaSegura\Enums;
 
-use App\Enums\ScreamingSnakeEnum;
+use Spatie\Enum\Laravel\Enum;
 
 /**
  * Razones de cancelación automática de Firmas Regulares.
@@ -14,8 +14,18 @@ use App\Enums\ScreamingSnakeEnum;
  * @method static self civilRegistryDataNotFound()
  * @method static self unclaimed()
  */
-final class AutoCancellationReason extends ScreamingSnakeEnum
+final class AutoCancellationReason extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'expiredCorrection' => 'EXPIRED_CORRECTION',
+            'outdatedIdentification' => 'OUTDATED_IDENTIFICATION',
+            'civilRegistryDataNotFound' => 'CIVIL_REGISTRY_DATA_NOT_FOUND',
+            'unclaimed' => 'UNCLAIMED',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [

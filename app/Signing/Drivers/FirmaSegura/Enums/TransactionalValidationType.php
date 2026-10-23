@@ -2,7 +2,7 @@
 
 namespace App\Signing\Drivers\FirmaSegura\Enums;
 
-use App\Enums\ScreamingSnakeEnum;
+use Spatie\Enum\Laravel\Enum;
 
 /**
  * Tipos de validación de Firmas Transaccionales.
@@ -15,8 +15,19 @@ use App\Enums\ScreamingSnakeEnum;
  * @method static self lifeProof()
  * @method static self certificate()
  */
-final class TransactionalValidationType extends ScreamingSnakeEnum
+final class TransactionalValidationType extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'civilRegistry' => 'CIVIL_REGISTRY',
+            'frontDocument' => 'FRONT_DOCUMENT',
+            'backDocument' => 'BACK_DOCUMENT',
+            'lifeProof' => 'LIFE_PROOF',
+            'certificate' => 'CERTIFICATE',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [

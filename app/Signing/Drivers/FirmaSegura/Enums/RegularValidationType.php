@@ -2,7 +2,7 @@
 
 namespace App\Signing\Drivers\FirmaSegura\Enums;
 
-use App\Enums\ScreamingSnakeEnum;
+use Spatie\Enum\Laravel\Enum;
 
 /**
  * Tipos de validación de Firmas Regulares.
@@ -15,8 +15,19 @@ use App\Enums\ScreamingSnakeEnum;
  * @method static self legalRepresentativeDocuments()
  * @method static self rucNaturalPerson()
  */
-final class RegularValidationType extends ScreamingSnakeEnum
+final class RegularValidationType extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'documentEntity' => 'DOCUMENT_ENTITY',
+            'biometrics' => 'BIOMETRICS',
+            'olderPersonVideo' => 'OLDER_PERSON_VIDEO',
+            'legalRepresentativeDocuments' => 'LEGAL_REPRESENTATIVE_DOCUMENTS',
+            'rucNaturalPerson' => 'RUC_NATURAL_PERSON',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [

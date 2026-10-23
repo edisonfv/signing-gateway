@@ -2,7 +2,7 @@
 
 namespace App\Signing\Drivers\FirmaSegura\Enums;
 
-use App\Enums\ScreamingSnakeEnum;
+use Spatie\Enum\Laravel\Enum;
 
 /**
  * Tipos de documento de términos y condiciones.
@@ -11,8 +11,15 @@ use App\Enums\ScreamingSnakeEnum;
  *
  * @method static self traditionalSignature()
  */
-final class TermsType extends ScreamingSnakeEnum
+final class TermsType extends Enum
 {
+    protected static function values(): array
+    {
+        return [
+            'traditionalSignature' => 'TRADITIONAL_SIGNATURE',
+        ];
+    }
+
     protected static function labels(): array
     {
         return [
