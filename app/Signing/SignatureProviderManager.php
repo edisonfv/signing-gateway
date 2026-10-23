@@ -5,6 +5,7 @@ namespace App\Signing;
 use App\Models\ProviderAccount;
 use App\Models\SignatureRequest;
 use App\Signing\Contracts\DrivesApiFlow;
+use App\Signing\Contracts\RegistersRegularRequests;
 use App\Signing\Contracts\SignatureProvider;
 use App\Signing\Drivers\FirmaSegura\FirmaSeguraDriver;
 use Illuminate\Support\Manager;
@@ -38,6 +39,20 @@ class SignatureProviderManager extends Manager
 
         if (! $driver instanceof DrivesApiFlow) {
             throw new LogicException("El proveedor {$driver->name()} no implementa el Flujo por API.");
+        }
+
+        return $driver;
+    }
+
+    /**
+     * Driver de la cuenta que atiende la solicitud, con las capacidades de Firmas Regulares.
+     */
+    public function regularFlowFor(SignatureRequest $request): RegistersRegularRequests
+    {
+        $driver = $this->forAccount($request->providerAccount);
+
+        if (! $driver instanceof RegistersRegularRequests) {
+            throw new LogicException("El proveedor {$driver->name()} no implementa Firmas Regulares.");
         }
 
         return $driver;

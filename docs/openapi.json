@@ -22,6 +22,10 @@
         {
             "name": "Flujo por API",
             "description": "Emisi\u00f3n de firma electr\u00f3nica paso a paso (FirmaSegura, Flujo por API)."
+        },
+        {
+            "name": "Firmas Regulares",
+            "description": "Validaci\u00f3n por documentos a cargo de operadores del proveedor."
         }
     ],
     "security": [
@@ -219,6 +223,114 @@
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "description": "Token inv\u00e1lido o vencido, o firma, timestamp o nonce inv\u00e1lidos.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Credencial revocada, tenant suspendido, IP no permitida o token sin la ability requerida.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Se super\u00f3 el l\u00edmite de peticiones de la credencial.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/products": {
+            "get": {
+                "operationId": "v1.products.index",
+                "description": "Flujos de firma que el tenant de la credencial tiene habilitados por sus condiciones\ncomerciales, con sus requisitos (tipos de solicitante, vigencias, documentos y textos gu\u00eda).\nEl frontend del SaaS elige el flujo con esta respuesta y env\u00eda `product` al crear la solicitud.",
+                "summary": "Productos contratados",
+                "tags": [
+                    "Cat\u00e1logos"
+                ],
+                "parameters": [
+                    {
+                        "name": "X-Timestamp",
+                        "in": "header",
+                        "required": true,
+                        "description": "Epoch en segundos. Ventana de \u00b15 minutos.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "1761200000"
+                    },
+                    {
+                        "name": "X-Nonce",
+                        "in": "header",
+                        "required": true,
+                        "description": "Valor \u00fanico por petici\u00f3n (16\u201364 caracteres).",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "b1f0c3e9a7d24c6f9e2a5b8c7d1e0f3a"
+                    },
+                    {
+                        "name": "X-Signature",
+                        "in": "header",
+                        "required": true,
+                        "description": "HMAC-SHA256 hex de M\u00c9TODO\\n/ruta?query\\nX-Timestamp\\nX-Nonce\\nsha256(cuerpo) con el secreto de firma.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "0000000000000000000000000000000000000000000000000000000000000000"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {}
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "description": "Token inv\u00e1lido o vencido, o firma, timestamp o nonce inv\u00e1lidos.",
@@ -1395,22 +1507,41 @@
                         }
                     },
                     "409": {
-                        "description": "An error",
+                        "description": "An error\n\nAn error",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "description": "Error overview.",
-                                            "examples": [
-                                                "La solicitud no est\u00e1 esperando una prueba de vida."
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "La prueba de vida solo aplica al Flujo por API."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "La solicitud no est\u00e1 esperando una prueba de vida."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
                                             ]
                                         }
-                                    },
-                                    "required": [
-                                        "message"
                                     ]
                                 }
                             }
@@ -1665,22 +1796,41 @@
                         }
                     },
                     "409": {
-                        "description": "An error",
+                        "description": "An error\n\nAn error",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "description": "Error overview.",
-                                            "examples": [
-                                                "La solicitud no est\u00e1 esperando el resultado de una prueba de vida."
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "La prueba de vida solo aplica al Flujo por API."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "La solicitud no est\u00e1 esperando el resultado de una prueba de vida."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
                                             ]
                                         }
-                                    },
-                                    "required": [
-                                        "message"
                                     ]
                                 }
                             }
@@ -1810,22 +1960,41 @@
                         }
                     },
                     "409": {
-                        "description": "An error",
+                        "description": "An error\n\nAn error",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "description": "Error overview.",
-                                            "examples": [
-                                                "La solicitud ya no se puede cancelar."
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "La solicitud ya no se puede cancelar."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "Firmas Regulares no ofrece cancelaci\u00f3n una vez registrada en el proveedor."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
                                             ]
                                         }
-                                    },
-                                    "required": [
-                                        "message"
                                     ]
                                 }
                             }
@@ -1965,11 +2134,26 @@
                         }
                     },
                     "409": {
-                        "description": "An error\n\nAn error",
+                        "description": "An error\n\nAn error\n\nAn error",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "En este producto el proveedor entrega el certificado directamente al titular por correo."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        },
                                         {
                                             "type": "object",
                                             "properties": {
@@ -2077,6 +2261,179 @@
                     }
                 }
             }
+        },
+        "/v1/signature-sessions/{signatureSession}/corrections": {
+            "post": {
+                "operationId": "v1.signature-sessions.corrections.store",
+                "description": "Cuando la solicitud est\u00e1 en `FAILED_RETRYABLE` (el proveedor la marc\u00f3 con ERROR), reenv\u00eda el\nc\u00f3digo dactilar y/o las im\u00e1genes con error activo. `error.codes` de la solicitud indica qu\u00e9\ncorregir: D02 (c\u00f3digo dactilar), A01 (anverso), A02 (reverso), A03 (selfie). Otros errores los\ncorrigen los operadores del proveedor.",
+                "summary": "Corregir solicitud",
+                "tags": [
+                    "Firmas Regulares"
+                ],
+                "parameters": [
+                    {
+                        "name": "signatureSession",
+                        "in": "path",
+                        "required": true,
+                        "description": "The signature session ID",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "X-Timestamp",
+                        "in": "header",
+                        "required": true,
+                        "description": "Epoch en segundos. Ventana de \u00b15 minutos.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "1761200000"
+                    },
+                    {
+                        "name": "X-Nonce",
+                        "in": "header",
+                        "required": true,
+                        "description": "Valor \u00fanico por petici\u00f3n (16\u201364 caracteres).",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "b1f0c3e9a7d24c6f9e2a5b8c7d1e0f3a"
+                    },
+                    {
+                        "name": "X-Signature",
+                        "in": "header",
+                        "required": true,
+                        "description": "HMAC-SHA256 hex de M\u00c9TODO\\n/ruta?query\\nX-Timestamp\\nX-Nonce\\nsha256(cuerpo) con el secreto de firma.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "0000000000000000000000000000000000000000000000000000000000000000"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreRegularCorrectionRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`SignatureSessionResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/SignatureSessionResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error\n\nAn error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "Las correcciones solo aplican a Firmas Regulares."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "La solicitud no tiene errores pendientes de correcci\u00f3n."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "description": "Token inv\u00e1lido o vencido, o firma, timestamp o nonce inv\u00e1lidos.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Credencial revocada, tenant suspendido, IP no permitida o token sin la ability requerida.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Se super\u00f3 el l\u00edmite de peticiones de la credencial.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -2133,6 +2490,12 @@
                     "id": {
                         "type": "string"
                     },
+                    "product": {
+                        "type": "string"
+                    },
+                    "delivery_mode": {
+                        "type": "string"
+                    },
                     "status": {
                         "type": "string"
                     },
@@ -2174,15 +2537,31 @@
                                     "string",
                                     "null"
                                 ]
+                            },
+                            "codes": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "minItems": 0,
+                                        "maxItems": 0
+                                    }
+                                ]
                             }
                         },
                         "required": [
                             "message",
-                            "provider_status"
+                            "provider_status",
+                            "codes"
                         ]
                     },
                     "certificate_available": {
-                        "type": "boolean"
+                        "type": "string"
                     },
                     "created_at": {
                         "type": [
@@ -2211,6 +2590,8 @@
                 },
                 "required": [
                     "id",
+                    "product",
+                    "delivery_mode",
                     "status",
                     "step",
                     "application_type",
@@ -2239,15 +2620,59 @@
                 ],
                 "title": "StoreLivenessResultRequest"
             },
+            "StoreRegularCorrectionRequest": {
+                "type": "object",
+                "description": "Correcci\u00f3n de una solicitud de Firmas Regulares en ERROR: el proveedor solo acepta el\nc\u00f3digo dactilar (D02) y las im\u00e1genes de la c\u00e9dula y la selfie (A01, A02, A03).",
+                "properties": {
+                    "finger_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 10,
+                        "maxLength": 10
+                    },
+                    "documents": {
+                        "type": "object",
+                        "properties": {
+                            "identification_front": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "identification_back": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "identification_selfie": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "title": "StoreRegularCorrectionRequest"
+            },
             "StoreSignatureSessionRequest": {
                 "type": "object",
-                "description": "Datos para iniciar una solicitud del Flujo por API.\n\nEl flujo admite persona natural con o sin RUC; representante legal no est\u00e1 en el\nesquema del proveedor para este flujo.\n\nNo usa el trait TransformsEnums de spatie/laravel-enum: su m\u00e9todo abstracto enums()\nchoca con Illuminate\\Http\\Request::enums() de Laravel 13. Los valores se convierten\na enum en CreateSignatureSession.",
+                "description": "Datos para crear una solicitud de firma. El SaaS elige el flujo con `product`\n(seg\u00fan las condiciones comerciales del tenant, ver GET /v1/products):\n\n- HEADLESS (Flujo por API): identidad por prueba de vida; persona natural con o sin RUC.\n- REGULAR (Firmas Regulares): identidad por documentos que validan operadores; admite\n  representante legal; video de autorizaci\u00f3n obligatorio desde los 65 a\u00f1os.\n\nNo usa el trait TransformsEnums de spatie/laravel-enum: su m\u00e9todo abstracto enums()\nchoca con Illuminate\\Http\\Request::enums() de Laravel 13.",
                 "properties": {
+                    "product": {
+                        "type": "string",
+                        "enum": [
+                            "HEADLESS",
+                            "REGULAR"
+                        ]
+                    },
                     "application_type": {
                         "type": "string",
                         "enum": [
-                            "NATURAL_PERSON",
-                            "NATURAL_PERSON_RUC"
+                            ""
                         ]
                     },
                     "period": {
@@ -2287,6 +2712,13 @@
                                     "string",
                                     "null"
                                 ]
+                            },
+                            "birth_date": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date"
                             }
                         },
                         "required": [
@@ -2297,6 +2729,80 @@
                             "address",
                             "city_id"
                         ]
+                    },
+                    "company": {
+                        "type": "object",
+                        "properties": {
+                            "ruc": {
+                                "type": "string",
+                                "pattern": "^\\d{10}001$"
+                            },
+                            "name": {
+                                "type": "string",
+                                "maxLength": 250
+                            },
+                            "position": {
+                                "type": "string",
+                                "maxLength": 100
+                            },
+                            "appointment_expires_at": {
+                                "type": "string",
+                                "format": "date"
+                            }
+                        }
+                    },
+                    "documents": {
+                        "type": "object",
+                        "properties": {
+                            "identification_front": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "identification_back": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "identification_selfie": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "company_ruc_pdf": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "representative_appointment_pdf": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "appointment_acceptance_pdf": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "company_constitution_pdf": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "authorization_video": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        }
                     },
                     "terms": {
                         "type": "object",
@@ -2332,6 +2838,7 @@
                     }
                 },
                 "required": [
+                    "product",
                     "application_type",
                     "period",
                     "applicant",

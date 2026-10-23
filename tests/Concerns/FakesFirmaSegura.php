@@ -57,6 +57,14 @@ trait FakesFirmaSegura
                 'serialNumber' => 'SN-001', 'password' => self::P12_PASSWORD, 'certificateBase64' => $this->testP12Base64(),
             ]),
             self::FS_BASE.'/signature/request/cancel*' => Http::response(status: 204),
+            self::FS_BASE.'/collector/request' => Http::response([
+                'requestId' => 'fs-regular-1', 'referenceTransaction' => 'ref', 'createdAt' => '2026-10-23 10:00:00',
+            ]),
+            self::FS_BASE.'/middleware/signature-request/status*' => Http::response([
+                'request' => ['id' => 'fs-regular-1', 'status' => 'REGISTERED'],
+                'validation' => ['record' => ['status' => 'PENDING'], 'errors' => []],
+            ]),
+            self::FS_BASE.'/manager/validation-request/request-data/*' => Http::response(['message' => 'Actualizado']),
             self::FS_BASE.'/signature/traditional/session/*/tracking' => Http::response([
                 'sessionId' => 'fs-session-1', 'status' => ['code' => 'IN_PROGRESS', 'label' => 'En Progreso'],
                 'stage' => ['code' => 'BIOMETRIC', 'label' => 'Biometría'], 'error' => null,
@@ -88,6 +96,7 @@ trait FakesFirmaSegura
         $city = City::whereHas('province', fn ($query) => $query->where('name', 'PICHINCHA'))->where('name', 'QUITO')->firstOrFail();
 
         return array_replace_recursive([
+            'product' => 'HEADLESS',
             'application_type' => 'NATURAL_PERSON',
             'period' => 'ONE_YEAR',
             'applicant' => [

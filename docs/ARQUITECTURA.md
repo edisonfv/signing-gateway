@@ -792,6 +792,15 @@ Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `Transf
 - **Prioridad:** primero las nunca reconciliadas, luego las de consulta más antigua. Recientes (< 24 h) cada 10 min, antiguas cada 60 min. Se omiten las que cambiaron hace < 2 min.
 - **Correcciones:** `REJECTED`/`EXPIRED`/`CANCELLED` del proveedor cierran la solicitud; `RETRYABLE`/`ERROR` pasan a `FAILED_RETRYABLE` si el gateway no lo registró. Una sesión `COMPLETED` sin p12 en la bóveda se reporta como incidente (`certificate.issued_not_stored`), sin corrección automática.
 
+### 16.7.2 Firmas Regulares y elección de flujo por condiciones comerciales (2026-10-23)
+
+- **Condiciones comerciales:** `tenants.enabled_products` (comando `gateway:tenant:products`; por defecto `GATEWAY_DEFAULT_PRODUCTS`). `GET /v1/products` devuelve los productos habilitados del tenant con sus requisitos (tipos de solicitante, vigencias, documentos, textos guía), y el SaaS elige el flujo enviando `product` en `POST /v1/signature-sessions`.
+- **REGULAR:** el SaaS envía documentos en base64 (`documents.*`). `ValidDocument` revisa el tipo real (finfo) y el tamaño. Se exige `birth_date`: rechaza menores y pide `authorization_video` desde los 65 años. Representante legal requiere `company` + RUC, nombramiento y constitución en PDF.
+- Los documentos se guardan **cifrados con la llave de la bóveda** en el disco `documents` solo hasta que `SubmitRegularRequest` los envía (`POST /collector/request`); luego se purgan (y `model:prune` borra los abandonados > 48 h).
+- Estado por `GET /middleware/signature-request/status` dentro del mismo presupuesto de consultas: `VALIDATING`→`VALIDATING`, `ERROR`→`FAILED_RETRYABLE` (con `error.codes`), `REFUSED`→`REJECTED`, `APPROVED`→`ISSUED`, `GENERATED`→`DELIVERED`, `EXPIRED`→`EXPIRED`, revocación aprobada→`REVOKED`.
+- Corrección: `POST /v1/signature-sessions/{id}/corrections` (código dactilar D02, imágenes A01–A03) → `PATCH /manager/validation-request/request-data/{referenceTransaction}`.
+- Entrega: el proveedor envía el certificado **al titular** por correo; el SaaS no lo retira (`GET …/certificate` responde 409). No hay cancelación una vez registrada.
+
 ### 16.8 Preguntas para FirmaSegura (Flujo por API)
 
 > **Validado en sandbox (2026-10-23):** el flujo completo funciona de punta a punta: solicitud → Registro Civil → prueba de vida (AWS Amplify `FaceLivenessDetectorCore`) → emisión. El p12 llega con su contraseña (emisor `FIRMASEGURA STAGING SUBCA`, vigencia 1 año), el tracking termina en `COMPLETED` y FirmaSegura envía el contrato al correo del titular.

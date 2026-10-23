@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\CertificateVaultEntry;
+use App\Models\SignatureDocument;
 use Illuminate\Support\Facades\Schedule;
 
 /*
@@ -8,8 +9,8 @@ use Illuminate\Support\Facades\Schedule;
 | compartido entre nodos (database o redis).
 */
 
-// Vacía p12 y contraseñas ya entregados o vencidos (CertificateVaultEntry::prunable()).
-Schedule::command('model:prune', ['--model' => [CertificateVaultEntry::class]])
+// Vacía p12 y contraseñas entregados o vencidos, y documentos de Firmas Regulares ya enviados.
+Schedule::command('model:prune', ['--model' => [CertificateVaultEntry::class, SignatureDocument::class]])
     ->everyFifteenMinutes()
     ->onOneServer()
     ->withoutOverlapping(10);

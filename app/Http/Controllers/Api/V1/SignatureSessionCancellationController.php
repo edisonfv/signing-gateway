@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\ProductType;
 use App\Enums\RequestStatus;
 use App\Exceptions\ProviderRequestException;
 use App\Http\Controllers\Controller;
@@ -25,6 +26,11 @@ class SignatureSessionCancellationController extends Controller
         Gate::authorize('update', $signatureSession);
 
         abort_unless($signatureSession->status->canTransitionTo(RequestStatus::cancelled()), 409, 'La solicitud ya no se puede cancelar.');
+        abort_if(
+            $signatureSession->product->equals(ProductType::regular()) && $signatureSession->provider_request_id !== null,
+            409,
+            'Firmas Regulares no ofrece cancelación una vez registrada en el proveedor.',
+        );
 
         if ($signatureSession->provider_session_id !== null) {
             try {

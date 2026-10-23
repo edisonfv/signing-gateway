@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\DeliveryMode;
 use App\Enums\RequestStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ApiClient;
@@ -31,6 +32,11 @@ class CertificateController extends Controller
         /** @var ApiClient $client */
         $client = $request->user();
 
+        abort_unless(
+            $signatureSession->product->deliveryMode()->equals(DeliveryMode::clientSealed()),
+            409,
+            'En este producto el proveedor entrega el certificado directamente al titular por correo.',
+        );
         abort_if(blank($client->delivery_public_key), 409, 'La credencial no tiene llave pública de entrega configurada.');
         abort_if($signatureSession->status->equals(RequestStatus::delivered()), 410, 'El certificado ya fue entregado.');
         abort_unless($signatureSession->status->equals(RequestStatus::certificateStored()), 409, 'El certificado aún no está disponible.');

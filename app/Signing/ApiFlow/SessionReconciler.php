@@ -2,19 +2,24 @@
 
 namespace App\Signing\ApiFlow;
 
+use App\Enums\ProductType;
 use App\Enums\RequestStatus;
 use App\Exceptions\ProviderRequestException;
 use App\Exceptions\TrackingBudgetExhaustedException;
 use App\Models\AuditLog;
 use App\Models\ClientNotification;
 use App\Models\SignatureRequest;
+use App\Signing\Data\RegularRequestState;
 use App\Signing\Data\SessionTracking;
+use App\Signing\Drivers\FirmaSegura\Enums\RegularRequestStatus;
+use App\Signing\Drivers\FirmaSegura\Enums\RevocationStatus;
 use App\Signing\Drivers\FirmaSegura\Enums\SessionStatus;
 use App\Signing\SignatureProviderManager;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Alinea el estado local de una solicitud con el tracking del proveedor.
+ * Alinea el estado local de una solicitud con el proveedor: tracking de sesión (Flujo por API)
+ * o consulta de estado (Firmas Regulares).
  *
  * Solo corrige lo que el proveedor ya decidió: cierres (rechazo, expiración, anulación) y
  * pausas reintentables que el gateway no registró. Una sesión COMPLETED sin certificado en la
@@ -38,6 +43,13 @@ class SessionReconciler
         }
 
         try {
+            if ($request->product->equals(ProductType::regular())) {
+                $state = $this->providers->regularFlowFor($request)->regularRequestState($request);
+                DB::transaction(fn () => $this->applyRegular($request, $state, $source));
+
+                return $request->refresh();
+            }
+
             $tracking = $this->providers->apiFlowFor($request)->trackSession($request);
         } catch (ProviderRequestException $exception) {
             if ($exception->isRetryable()) {
@@ -91,6 +103,60 @@ class SessionReconciler
                 $this->notify($request, 'session.needs_review');
             }
         }
+    }
+
+    /**
+     * Firmas Regulares: los operadores del proveedor validan; el proveedor entrega el certificado
+     * al titular (APPROVED = correo de descarga enviado, GENERATED = descargado).
+     */
+    private function applyRegular(SignatureRequest $request, RegularRequestState $state, string $source): void
+    {
+        $request->forceFill([
+            'provider_request_id' => $request->provider_request_id ?? ($state->requestId ?: null),
+            'provider_status' => $state->status,
+            'provider_stage' => $state->validationStatus,
+            'last_reconciled_at' => now(),
+        ])->save();
+
+        $target = $state->revocationStatus === RevocationStatus::approved()->value
+            ? RequestStatus::revoked()
+            : match ($state->status) {
+                RegularRequestStatus::validating()->value => RequestStatus::validating(),
+                RegularRequestStatus::error()->value => RequestStatus::failedRetryable(),
+                RegularRequestStatus::refused()->value => RequestStatus::rejected(),
+                RegularRequestStatus::approved()->value => RequestStatus::issued(),
+                RegularRequestStatus::generated()->value => RequestStatus::delivered(),
+                RegularRequestStatus::expired()->value => RequestStatus::expired(),
+                default => null,
+            };
+
+        if ($target === null || $request->status->equals($target)) {
+            return;
+        }
+
+        if ($state->errorMessage() !== null && $target->equals(RequestStatus::failedRetryable(), RequestStatus::rejected(), RequestStatus::expired())) {
+            $request->forceFill(['last_error' => [
+                'http_status' => null,
+                'message' => $state->errorMessage(),
+                'session_status' => $state->status,
+                'codes' => $state->errorCodes(),
+            ]])->save();
+        }
+
+        if ($target->equals(RequestStatus::delivered()) && ! $request->status->canTransitionTo($target) && $request->status->canTransitionTo(RequestStatus::issued())) {
+            $request->transitionTo(RequestStatus::issued(), $source, ['provider_status' => $state->status]);
+        }
+
+        if (! $request->status->canTransitionTo($target)) {
+            return;
+        }
+
+        if ($target->equals(RequestStatus::issued(), RequestStatus::delivered()) && $request->issued_at === null) {
+            $request->forceFill(['issued_at' => now()])->save();
+        }
+
+        $request->transitionTo($target, $source, ['provider_status' => $state->status, 'error_codes' => $state->errorCodes()]);
+        $this->notify($request, 'session.reconciled');
     }
 
     private function targetStatus(SignatureRequest $request, SessionTracking $tracking): ?RequestStatus

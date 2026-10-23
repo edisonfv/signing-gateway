@@ -29,7 +29,17 @@ php artisan gateway:tenant:create <external_id> "<nombre>"
 php artisan gateway:client:create <external_id> "<nombre>" --ip=<ip o cidr> --public-key=<x25519 base64>
 ```
 
-El segundo comando muestra **una sola vez** el token de acceso, el secreto de firma y el secreto de
+Productos contratados por tenant (condiciones comerciales). Sin configurar, aplica `GATEWAY_DEFAULT_PRODUCTS`:
+
+```bash
+php artisan gateway:tenant:products <external_id> HEADLESS REGULAR
+```
+
+El SaaS consulta `GET /api/v1/products` para saber qué flujos ofrecer y con qué requisitos, y envía
+`product` (`HEADLESS` = Flujo por API con prueba de vida, `REGULAR` = Firmas Regulares con documentos)
+al crear la solicitud.
+
+El comando `gateway:client:create` muestra **una sola vez** el token de acceso, el secreto de firma y el secreto de
 notificaciones, que se configuran en el admin del SaaS. Cada petición debe llevar:
 
 - `Authorization: Bearer <token>`

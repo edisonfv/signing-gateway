@@ -33,7 +33,7 @@ class ProviderRoutingTest extends TestCase
         $this->account();
 
         $this->expectException(NoProviderAvailableException::class);
-        app(ProviderRouter::class)->accountFor(ProductType::regular());
+        app(ProviderRouter::class)->accountFor(ProductType::transactional());
     }
 
     public function test_driver_calls_the_provider_with_the_account_token(): void

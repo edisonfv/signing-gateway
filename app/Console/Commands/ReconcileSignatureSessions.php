@@ -58,8 +58,8 @@ class ReconcileSignatureSessions extends Command
 
         return SignatureRequest::query()
             ->whereBelongsTo($account)
-            ->where('product', ProductType::headless()->value)
-            ->whereNotNull('provider_session_id')
+            ->whereIn('product', [ProductType::headless()->value, ProductType::regular()->value])
+            ->where(fn (Builder $query) => $query->whereNotNull('provider_session_id')->orWhereNotNull('provider_request_id'))
             ->where('updated_at', '<=', now()->subSeconds($config['quiet_seconds']))
             ->where(fn (Builder $query) => $query
                 ->whereIn('status', [

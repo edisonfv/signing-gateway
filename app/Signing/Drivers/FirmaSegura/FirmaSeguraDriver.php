@@ -2,16 +2,21 @@
 
 namespace App\Signing\Drivers\FirmaSegura;
 
+use App\Enums\ApplicationType;
+use App\Enums\DocumentType;
 use App\Enums\ProductType;
 use App\Exceptions\ProviderRequestException;
 use App\Models\ProviderAccount;
+use App\Models\SignatureDocument;
 use App\Models\SignatureRequest;
 use App\Signing\Contracts\DrivesApiFlow;
+use App\Signing\Contracts\RegistersRegularRequests;
 use App\Signing\Contracts\SignatureProvider;
 use App\Signing\Data\CertificateData;
 use App\Signing\Data\CivilRegistryResult;
 use App\Signing\Data\LivenessCredentials;
 use App\Signing\Data\LivenessResult;
+use App\Signing\Data\RegularRequestState;
 use App\Signing\Data\SessionData;
 use App\Signing\Data\SessionTracking;
 use App\Signing\Data\TermsData;
@@ -28,7 +33,7 @@ use LogicException;
  * Flujo por API: https://docs.firmaseguraec.com/flujo-por-api-2110187m0
  * Ningún POST se reintenta automáticamente: cada job decide si es seguro reintentar.
  */
-class FirmaSeguraDriver implements DrivesApiFlow, SignatureProvider
+class FirmaSeguraDriver implements DrivesApiFlow, RegistersRegularRequests, SignatureProvider
 {
     private ?ProviderAccount $account = null;
 
@@ -39,7 +44,7 @@ class FirmaSeguraDriver implements DrivesApiFlow, SignatureProvider
 
     public function supports(ProductType $product): bool
     {
-        return $product->equals(ProductType::headless());
+        return $product->equals(ProductType::headless(), ProductType::regular());
     }
 
     public function withAccount(ProviderAccount $account): static
@@ -189,6 +194,96 @@ class FirmaSeguraDriver implements DrivesApiFlow, SignatureProvider
             $response->json('stage.code'),
             $response->json('error.code'),
             $response->json('error.detail') ?? $response->json('error.message'),
+        );
+    }
+
+    /**
+     * POST /collector/request (Firmas Regulares). Las imágenes, PDFs y video van en base64.
+     */
+    public function registerRegularRequest(SignatureRequest $request): string
+    {
+        $applicant = $request->applicant;
+        $company = $applicant['company'] ?? null;
+        $isLegalRepresentative = $request->application_type->equals(ApplicationType::legalRepresentative());
+        $documents = $request->documents()->whereNull('purged_at')->get()->keyBy(fn (SignatureDocument $document) => $document->type->value);
+        $document = fn (DocumentType $type): ?string => $documents->get($type->value)?->base64Content();
+
+        $payload = array_filter([
+            'referenceTransaction' => $request->referenceTransaction(),
+            'fingerCode' => $applicant['finger_code'],
+            'city' => $applicant['city'],
+            'province' => $applicant['province'],
+            'address' => $applicant['address'],
+            'identificationNumber' => $applicant['identification_number'],
+            'emailAddress' => $applicant['email'],
+            'cellphoneNumber' => $applicant['cellphone'],
+            'countryCode' => 'ECU',
+            'documentType' => 'CI',
+            'applicationType' => $isLegalRepresentative ? ApplicationType::legalRepresentative()->value : ApplicationType::naturalPerson()->value,
+            'period' => $request->period->value,
+            'identificationFront' => $document(DocumentType::identificationFront()),
+            'identificationBack' => $document(DocumentType::identificationBack()),
+            'identificationSelfie' => $document(DocumentType::identificationSelfie()),
+            'companyRuc' => $isLegalRepresentative ? $company['ruc'] : ($applicant['person_ruc'] ?? null),
+            'positionCompany' => $company['position'] ?? null,
+            'companySocialReason' => $company['name'] ?? null,
+            'appointmentExpirationDate' => isset($company['appointment_expires_at']) ? "{$company['appointment_expires_at']} 23:59:59" : null,
+            'pdfCompanyRuc' => $document(DocumentType::companyRucPdf()),
+            'pdfRepresentativeAppointment' => $document(DocumentType::representativeAppointmentPdf()),
+            'pdfAppointmentAcceptance' => $document(DocumentType::appointmentAcceptancePdf()),
+            'pdfCompanyConstitution' => $document(DocumentType::companyConstitutionPdf()),
+            'authorizationVideo' => $document(DocumentType::authorizationVideo()),
+        ], fn ($value) => $value !== null);
+
+        $response = $this->ensureSuccessful($this->http()->timeout(120)->post('/collector/request', $payload));
+
+        return $response->json('requestId')
+            ?? throw new ProviderRequestException(409, (string) ($response->json('message') ?? 'El proveedor no devolvió requestId.'));
+    }
+
+    /**
+     * GET /middleware/signature-request/status (con detalles de validación).
+     */
+    public function regularRequestState(SignatureRequest $request): RegularRequestState
+    {
+        $query = $request->provider_request_id !== null
+            ? ['requestId' => $request->provider_request_id]
+            : ['referenceTransaction' => $request->referenceTransaction()];
+
+        $response = $this->ensureSuccessful(
+            $this->http()->get('/middleware/signature-request/status', [...$query, 'includeValidationDetails' => 'true']),
+        );
+
+        $errors = collect($response->json('validation.errors') ?? [])
+            ->reject(fn (array $error) => (bool) ($error['managed'] ?? false))
+            ->map(fn (array $error) => ['code' => (string) ($error['code'] ?? ''), 'reason' => $error['reason'] ?? null])
+            ->values()
+            ->all();
+
+        return new RegularRequestState(
+            (string) ($response->json('request.id') ?? $request->provider_request_id),
+            (string) $response->json('request.status'),
+            $response->json('validation.record.status') ?? $response->json('validation.status'),
+            $errors,
+            $response->json('validation.record.automaticCancellationReason') ?? $response->json('validation.automaticCancellationReason'),
+            $response->json('revocation.status'),
+        );
+    }
+
+    /**
+     * PATCH /manager/validation-request/request-data/{referenceTransaction}
+     */
+    public function correctRegularRequest(SignatureRequest $request, ?string $fingerCode, array $documents): void
+    {
+        $payload = array_filter([
+            'fingerCode' => $fingerCode,
+            'identificationFront' => $documents[DocumentType::identificationFront()->value] ?? null,
+            'identificationBack' => $documents[DocumentType::identificationBack()->value] ?? null,
+            'identificationSelfie' => $documents[DocumentType::identificationSelfie()->value] ?? null,
+        ], fn ($value) => $value !== null);
+
+        $this->ensureSuccessful(
+            $this->http()->patch("/manager/validation-request/request-data/{$request->referenceTransaction()}", $payload),
         );
     }
 

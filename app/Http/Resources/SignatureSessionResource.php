@@ -23,6 +23,8 @@ class SignatureSessionResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'product' => $this->product->value,
+            'delivery_mode' => $this->product->deliveryMode()->value,
             'status' => $this->status->value,
             'step' => $this->current_step?->value,
             'application_type' => $this->application_type->value,
@@ -32,8 +34,10 @@ class SignatureSessionResource extends JsonResource
             'error' => $this->last_error === null ? null : [
                 'message' => $this->last_error['message'] ?? null,
                 'provider_status' => $this->last_error['session_status'] ?? null,
+                'codes' => $this->last_error['codes'] ?? [],
             ],
-            'certificate_available' => $this->status->value === 'CERTIFICATE_STORED',
+            'certificate_available' => $this->status->value === 'CERTIFICATE_STORED'
+                && $this->product->deliveryMode()->value === 'CLIENT_SEALED',
             'created_at' => $this->created_at?->toIso8601String(),
             'issued_at' => $this->issued_at?->toIso8601String(),
             'delivered_at' => $this->delivered_at?->toIso8601String(),

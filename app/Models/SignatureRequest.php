@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  */
 #[Fillable([
     'tenant_id', 'api_client_id', 'provider_account_id', 'idempotency_key', 'product',
-    'application_type', 'period', 'status', 'current_step', 'provider_session_id',
+    'application_type', 'period', 'status', 'current_step', 'provider_session_id', 'provider_request_id',
     'provider_status', 'provider_stage', 'identification_hash', 'applicant', 'last_error',
     'remaining_liveness_attempts', 'issued_at', 'delivered_at', 'closed_at',
 ])]
@@ -119,6 +119,14 @@ class SignatureRequest extends Model
     public function termsAcceptance(): HasOne
     {
         return $this->hasOne(TermsAcceptance::class);
+    }
+
+    /**
+     * @return HasMany<SignatureDocument, $this>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(SignatureDocument::class);
     }
 
     /**

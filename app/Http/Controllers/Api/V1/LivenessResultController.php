@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\ProductType;
 use App\Enums\RequestStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreLivenessResultRequest;
@@ -28,6 +29,8 @@ class LivenessResultController extends Controller
     public function store(StoreLivenessResultRequest $request, SignatureRequest $signatureSession): JsonResponse
     {
         Gate::authorize('update', $signatureSession);
+
+        abort_unless($signatureSession->product->equals(ProductType::headless()), 409, 'La prueba de vida solo aplica al Flujo por API.');
 
         abort_unless(
             $signatureSession->status->equals(RequestStatus::awaitingApplicant()),

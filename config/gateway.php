@@ -21,6 +21,9 @@ return [
     // FirmaSegura (1801020101…) no lo cumplen, así que por defecto solo se exige en producción.
     'strict_identification' => (bool) env('GATEWAY_STRICT_IDENTIFICATION', env('GATEWAY_PROVIDER_ENVIRONMENT', 'sandbox') === 'production'),
 
+    // Productos habilitados para un tenant sin condiciones comerciales propias (separados por coma).
+    'default_products' => array_filter(explode(',', (string) env('GATEWAY_DEFAULT_PRODUCTS', 'HEADLESS'))),
+
     // Driver por defecto de SignatureProviderManager.
     'default_provider' => env('GATEWAY_DEFAULT_PROVIDER', 'firmasegura'),
 

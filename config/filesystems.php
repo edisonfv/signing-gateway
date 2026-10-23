@@ -30,6 +30,15 @@ return [
 
     'disks' => [
 
+        // Documentos de Firmas Regulares, cifrados y temporales. Nunca se sirven por HTTP.
+        'documents' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/signature-documents'),
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
