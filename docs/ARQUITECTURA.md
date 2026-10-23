@@ -785,6 +785,13 @@ Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `Transf
 | `GET` | `/v1/signature-sessions` | `signature-sessions.view` | Listado con spatie/laravel-query-builder (`filter[status]`, `filter[stage]`, `sort=-created_at`) |
 | `GET` | `/v1/catalogs/{catalog}` | `signature-sessions.view` | Provincias, ciudades, periodos y tipos (desde los enums) para que el SaaS arme sus formularios |
 
+### 16.7.1 Reconciliación de estados (implementada 2026-10-23)
+
+- `gateway:reconcile-sessions` corre **cada 10 minutos** (scheduler, `onOneServer`) y encola `ReconcileSignatureSession` para las solicitudes abiertas con sesión en el proveedor.
+- **Presupuesto:** `TrackingBudget` limita a `GATEWAY_PROVIDER_STATUS_HOURLY` (900 por defecto, FirmaSegura permite 1000) consultas de estado por hora y cuenta. Lo comparten la reconciliación y la consulta bajo demanda `POST /v1/signature-sessions/{id}/refresh` (429 si se agota).
+- **Prioridad:** primero las nunca reconciliadas, luego las de consulta más antigua. Recientes (< 24 h) cada 10 min, antiguas cada 60 min. Se omiten las que cambiaron hace < 2 min.
+- **Correcciones:** `REJECTED`/`EXPIRED`/`CANCELLED` del proveedor cierran la solicitud; `RETRYABLE`/`ERROR` pasan a `FAILED_RETRYABLE` si el gateway no lo registró. Una sesión `COMPLETED` sin p12 en la bóveda se reporta como incidente (`certificate.issued_not_stored`), sin corrección automática.
+
 ### 16.8 Preguntas para FirmaSegura (Flujo por API)
 
 > **Validado en sandbox (2026-10-23):** el flujo completo funciona de punta a punta: solicitud → Registro Civil → prueba de vida (AWS Amplify `FaceLivenessDetectorCore`) → emisión. El p12 llega con su contraseña (emisor `FIRMASEGURA STAGING SUBCA`, vigencia 1 año), el tracking termina en `COMPLETED` y FirmaSegura envía el contrato al correo del titular.

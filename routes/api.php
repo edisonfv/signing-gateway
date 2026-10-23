@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\ProvinceCityController;
 use App\Http\Controllers\Api\V1\ProvinceController;
 use App\Http\Controllers\Api\V1\SignatureSessionCancellationController;
 use App\Http\Controllers\Api\V1\SignatureSessionController;
+use App\Http\Controllers\Api\V1\SignatureSessionRefreshController;
 use App\Http\Controllers\Api\V1\TermsController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,7 @@ Route::prefix('v1')
 
             Route::whereUuid('signatureSession')->group(function () use ($create, $view) {
                 Route::get('{signatureSession}', [SignatureSessionController::class, 'show'])->middleware($view)->name('show');
+                Route::post('{signatureSession}/refresh', [SignatureSessionRefreshController::class, 'store'])->middleware($view)->name('refresh');
                 Route::post('{signatureSession}/liveness-session', [LivenessSessionController::class, 'store'])->middleware($create)->name('liveness-session.store');
                 Route::get('{signatureSession}/liveness-credentials', [LivenessCredentialController::class, 'show'])->middleware($create)->name('liveness-credentials.show');
                 Route::post('{signatureSession}/liveness-result', [LivenessResultController::class, 'store'])->middleware($create)->name('liveness-result.store');

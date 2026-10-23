@@ -13,6 +13,7 @@ use App\Signing\Data\CivilRegistryResult;
 use App\Signing\Data\LivenessCredentials;
 use App\Signing\Data\LivenessResult;
 use App\Signing\Data\SessionData;
+use App\Signing\Data\SessionTracking;
 use App\Signing\Data\TermsData;
 use App\Signing\Drivers\FirmaSegura\Enums\TermsType;
 use Carbon\CarbonImmutable;
@@ -170,6 +171,24 @@ class FirmaSeguraDriver implements DrivesApiFlow, SignatureProvider
     {
         $this->ensureSuccessful(
             $this->http()->put('/signature/request/cancel?'.http_build_query(['referenceTransaction' => $request->referenceTransaction()])),
+        );
+    }
+
+    /**
+     * GET /signature/traditional/session/{sessionId}/tracking
+     * (verificado en sandbox: también aplica a sesiones del Flujo por API).
+     */
+    public function trackSession(SignatureRequest $request): SessionTracking
+    {
+        $response = $this->ensureSuccessful(
+            $this->http()->get("/signature/traditional/session/{$this->sessionId($request)}/tracking"),
+        );
+
+        return new SessionTracking(
+            (string) $response->json('status.code'),
+            $response->json('stage.code'),
+            $response->json('error.code'),
+            $response->json('error.detail') ?? $response->json('error.message'),
         );
     }
 

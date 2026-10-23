@@ -8,6 +8,8 @@ use App\Jobs\Concerns\HandlesProviderSession;
 use App\Models\AuditLog;
 use App\Models\CertificateVaultEntry;
 use App\Models\SignatureRequest;
+use App\Signing\Drivers\FirmaSegura\Enums\SessionStage;
+use App\Signing\Drivers\FirmaSegura\Enums\SessionStatus;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -74,7 +76,12 @@ class IssueCertificate implements ShouldBeEncrypted, ShouldBeUnique, ShouldQueue
                 'received_at' => now(),
             ]);
 
-            $this->signatureRequest->forceFill(['issued_at' => now()])->save();
+            // Tras emitir, el tracking del proveedor reporta COMPLETED en la etapa CERTIFICATE.
+            $this->signatureRequest->forceFill([
+                'issued_at' => now(),
+                'provider_status' => SessionStatus::completed()->value,
+                'provider_stage' => SessionStage::certificate()->value,
+            ])->save();
             $this->signatureRequest->transitionTo(RequestStatus::issued(), 'job');
             $this->advance(RequestStatus::certificateStored(), SessionStep::issuance(), 'certificate.ready');
         });

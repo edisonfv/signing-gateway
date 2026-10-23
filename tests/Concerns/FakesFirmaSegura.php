@@ -57,6 +57,10 @@ trait FakesFirmaSegura
                 'serialNumber' => 'SN-001', 'password' => self::P12_PASSWORD, 'certificateBase64' => $this->testP12Base64(),
             ]),
             self::FS_BASE.'/signature/request/cancel*' => Http::response(status: 204),
+            self::FS_BASE.'/signature/traditional/session/*/tracking' => Http::response([
+                'sessionId' => 'fs-session-1', 'status' => ['code' => 'IN_PROGRESS', 'label' => 'En Progreso'],
+                'stage' => ['code' => 'BIOMETRIC', 'label' => 'Biometría'], 'error' => null,
+            ]),
             ...$overrides,
         ]);
     }

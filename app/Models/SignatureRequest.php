@@ -45,6 +45,7 @@ class SignatureRequest extends Model
             'issued_at' => 'datetime',
             'delivered_at' => 'datetime',
             'closed_at' => 'datetime',
+            'last_reconciled_at' => 'datetime',
         ];
     }
 

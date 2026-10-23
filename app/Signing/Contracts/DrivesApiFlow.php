@@ -9,6 +9,7 @@ use App\Signing\Data\CivilRegistryResult;
 use App\Signing\Data\LivenessCredentials;
 use App\Signing\Data\LivenessResult;
 use App\Signing\Data\SessionData;
+use App\Signing\Data\SessionTracking;
 use App\Signing\Data\TermsData;
 
 /**
@@ -33,4 +34,9 @@ interface DrivesApiFlow
     public function issueCertificate(SignatureRequest $request): CertificateData;
 
     public function cancel(SignatureRequest $request): void;
+
+    /**
+     * Consulta de estado de la sesión. Cuenta contra el límite de consultas de estado del proveedor.
+     */
+    public function trackSession(SignatureRequest $request): SessionTracking;
 }

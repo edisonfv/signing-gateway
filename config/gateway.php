@@ -53,6 +53,18 @@ return [
         'tenant_hourly' => (int) env('GATEWAY_TENANT_HOURLY_CAP', 10),
         // Tope global de solicitudes nuevas por hora (todas las cuentas).
         'global_hourly' => (int) env('GATEWAY_GLOBAL_HOURLY_CAP', 200),
+        // Consultas de estado (tracking) por hora y cuenta de proveedor. FirmaSegura permite 1000.
+        'provider_status_hourly' => (int) env('GATEWAY_PROVIDER_STATUS_HOURLY', 900),
+    ],
+
+    'reconciliation' => [
+        // Cada cuánto se vuelve a consultar una solicitud abierta, según su antigüedad.
+        'recent_interval_minutes' => (int) env('GATEWAY_RECONCILE_RECENT_MINUTES', 10),
+        'stale_interval_minutes' => (int) env('GATEWAY_RECONCILE_STALE_MINUTES', 60),
+        // A partir de cuántas horas una solicitud se considera antigua.
+        'stale_after_hours' => (int) env('GATEWAY_RECONCILE_STALE_AFTER_HOURS', 24),
+        // No se consulta una solicitud que cambió hace menos de esto (su job puede estar corriendo).
+        'quiet_seconds' => (int) env('GATEWAY_RECONCILE_QUIET_SECONDS', 120),
     ],
 
     'retention' => [

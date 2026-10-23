@@ -78,6 +78,7 @@ class SignatureSessionFlowTest extends TestCase
         $this->signedGet("/api/v1/signature-sessions/{$id}")
             ->assertOk()
             ->assertJsonPath('data.status', 'CERTIFICATE_STORED')
+            ->assertJsonPath('data.provider_status', 'COMPLETED')
             ->assertJsonPath('data.certificate_available', true);
 
         $sealed = $this->signedGet("/api/v1/signature-sessions/{$id}/certificate")->assertOk()->json('data.sealed');
