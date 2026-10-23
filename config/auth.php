@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ApiClient;
 use App\Models\User;
 
 return [
@@ -42,6 +43,12 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Clientes del SaaS: token Sanctum que solo puede pertenecer a un ApiClient.
+        'api' => [
+            'driver' => 'sanctum',
+            'provider' => 'api_clients',
+        ],
     ],
 
     /*
@@ -65,6 +72,11 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+
+        'api_clients' => [
+            'driver' => 'eloquent',
+            'model' => ApiClient::class,
         ],
 
         // 'users' => [

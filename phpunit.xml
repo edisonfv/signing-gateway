@@ -32,5 +32,9 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Llaves exclusivas de pruebas; nunca usarlas fuera de testing. -->
+        <env name="GATEWAY_VAULT_KEY" value="base64:nhSW4xObVJ0hJIzeeq6H+a1iY+0QycgDrj/Af0U4PpE="/>
+        <env name="GATEWAY_VAULT_PASSWORD_KEY" value="base64:JJmyrOdgYFx6hcDJuglaraEKzRsZhrlYC8n5RntL0ws="/>
+        <env name="GATEWAY_BLIND_INDEX_KEY" value="base64:U/r/QMyZ391krgsuABvGTNtQre9zPoE0O4pzI3scOcE="/>
     </php>
 </phpunit>

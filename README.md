@@ -1,58 +1,54 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Signing Gateway
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Microservicio aislado que emite certificados de firma electrónica para el SaaS.
+Hoy integra FirmaSeguraEC (Flujo por API); está diseñado para sumar otros proveedores.
 
-## About Laravel
+El diseño completo está en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Stack
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Laravel 13 · PHP 8.3+ · MySQL 8 · Sanctum · spatie/laravel-enum · spatie/laravel-permission · spatie/laravel-query-builder
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Puesta en marcha (desarrollo)
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan gateway:keys:generate        # llaves de bóveda e índice ciego (distintas de APP_KEY)
+php artisan migrate --seed               # tablas + roles y permisos
+php artisan gateway:provider:credentials sandbox   # pide el token de FirmaSegura con entrada oculta
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Clientes del SaaS
 
-## Contributing
+Cada cliente del SaaS (tenant) tiene su propia credencial:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+php artisan gateway:tenant:create <external_id> "<nombre>"
+php artisan gateway:client:create <external_id> "<nombre>" --ip=<ip o cidr> --public-key=<x25519 base64>
+```
 
-## Code of Conduct
+El segundo comando muestra **una sola vez** el token de acceso, el secreto de firma y el secreto de
+notificaciones, que se configuran en el admin del SaaS. Cada petición debe llevar:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+- `Authorization: Bearer <token>`
+- `X-Timestamp` (epoch en segundos), `X-Nonce` (16–64 caracteres, único)
+- `X-Signature`: HMAC-SHA256 con el secreto de firma sobre
+  `MÉTODO\n/ruta?query\nX-Timestamp\nX-Nonce\nsha256(cuerpo)`
 
-## Security Vulnerabilities
+Prueba de conexión: `GET /api/v1/ping`.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Catálogos
 
-## License
+Los enums de provincias y ciudades se generan desde `resources/catalogs/firmasegura/cities.json`:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan gateway:catalogs:locations
+```
+
+## Pruebas
+
+```bash
+php artisan test
+```
