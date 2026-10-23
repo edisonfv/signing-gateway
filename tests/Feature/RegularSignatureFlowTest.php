@@ -151,7 +151,9 @@ class RegularSignatureFlowTest extends TestCase
             self::FS_BASE.'/middleware/signature-request/status*' => Http::response([
                 'request' => ['id' => 'fs-regular-1', 'status' => 'ERROR'],
                 'validation' => ['record' => ['status' => 'ERROR'], 'errors' => [
-                    ['code' => 'A01', 'reason' => 'Cédula frontal ilegible', 'managed' => false],
+                    ['code' => 'A01', 'reason' => 'El DNI del registro civil no coincide con el del archivo', 'active' => true, 'managed' => false],
+                    ['code' => 'A01', 'reason' => 'La fecha de nacimiento no coincide', 'active' => true, 'managed' => false],
+                    ['code' => 'D02', 'reason' => 'Error ya resuelto', 'active' => false, 'managed' => false],
                 ]],
             ]),
         ]);

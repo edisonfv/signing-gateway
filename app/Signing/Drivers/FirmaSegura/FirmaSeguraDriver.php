@@ -255,7 +255,7 @@ class FirmaSeguraDriver implements DrivesApiFlow, RegistersRegularRequests, Sign
         );
 
         $errors = collect($response->json('validation.errors') ?? [])
-            ->reject(fn (array $error) => (bool) ($error['managed'] ?? false))
+            ->reject(fn (array $error) => (bool) ($error['managed'] ?? false) || ($error['active'] ?? true) === false)
             ->map(fn (array $error) => ['code' => (string) ($error['code'] ?? ''), 'reason' => $error['reason'] ?? null])
             ->values()
             ->all();

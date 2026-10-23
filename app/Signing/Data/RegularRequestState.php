@@ -33,6 +33,6 @@ final readonly class RegularRequestState
      */
     public function errorCodes(): array
     {
-        return array_values(array_map(fn (array $error) => $error['code'], $this->errors));
+        return array_values(array_unique(array_map(fn (array $error) => $error['code'], $this->errors)));
     }
 }

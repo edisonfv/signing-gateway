@@ -801,6 +801,8 @@ Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `Transf
 - Corrección: `POST /v1/signature-sessions/{id}/corrections` (código dactilar D02, imágenes A01–A03) → `PATCH /manager/validation-request/request-data/{referenceTransaction}`.
 - Entrega: el proveedor envía el certificado **al titular** por correo; el SaaS no lo retira (`GET …/certificate` responde 409). No hay cancelación una vez registrada.
 
+> **Sandbox Firmas Regulares (2026-10-23):** se registraron los 3 casos de certificación (RUC, tercera edad con video, representante legal). La validación automática (OCR) compara la cédula adjunta con el Registro Civil: la cédula de ejemplo de `adjuntos-multimedia` solo coincide con 1801020103, que pasó a `MANUALLY_VALIDATING`; los otros dos quedaron en `ERROR` (A01/A02 por datos que no coinciden). **Pendiente con FirmaSegura:** qué persona de prueba corresponde a cada adjunto, en especial una de 65+ con cédula de ejemplo propia. Los errores traen `active` y `managed`; el gateway ignora los inactivos o ya gestionados.
+
 ### 16.8 Preguntas para FirmaSegura (Flujo por API)
 
 > **Validado en sandbox (2026-10-23):** el flujo completo funciona de punta a punta: solicitud → Registro Civil → prueba de vida (AWS Amplify `FaceLivenessDetectorCore`) → emisión. El p12 llega con su contraseña (emisor `FIRMASEGURA STAGING SUBCA`, vigencia 1 año), el tracking termina en `COMPLETED` y FirmaSegura envía el contrato al correo del titular.
