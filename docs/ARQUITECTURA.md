@@ -787,6 +787,12 @@ Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `Transf
 
 ### 16.8 Preguntas para FirmaSegura (Flujo por API)
 
+> **Validado en sandbox (2026-10-23):** el flujo completo funciona de punta a punta: solicitud → Registro Civil → prueba de vida (AWS Amplify `FaceLivenessDetectorCore`) → emisión. El p12 llega con su contraseña (emisor `FIRMASEGURA STAGING SUBCA`, vigencia 1 año), el tracking termina en `COMPLETED` y FirmaSegura envía el contrato al correo del titular.
+>
+> **Diferencias con la documentación:**
+> - Un rostro que no coincide responde **409 con `sessionStatus: RETRYABLE` y sin `remainingAttempts`**, código `FACE_LIVENESS_FAILED` (la doc muestra `FAILED` + `remainingAttempts`). El gateway decide el reintento por `sessionStatus`.
+> - Las cédulas de prueba (1801020101…) no cumplen el dígito verificador.
+
 1. **Emisión:** si la respuesta de `issuance` se pierde (timeout), ¿se puede volver a pedir el certificado? ¿Con qué endpoint?
 2. ~~¿`tracking` aplica a sesiones del Flujo por API?~~ **Sí** (verificado en sandbox 2026-10-23: `GET /signature/traditional/session/{id}/tracking` → `IN_PROGRESS`, etapa `BIOMETRIC`). Falta confirmar `cancel`.
    - Las cédulas de prueba del sandbox (1801020101…) no cumplen el dígito verificador: `GATEWAY_STRICT_IDENTIFICATION` solo lo exige en producción.
