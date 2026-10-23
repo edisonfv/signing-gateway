@@ -9,6 +9,7 @@ use App\Enums\RequestStatus;
 use App\Exceptions\ProviderRequestException;
 use App\Jobs\CreateProviderSession;
 use App\Jobs\IssueCertificate;
+use App\Jobs\SubmitFaceLiveness;
 use App\Models\ApiClient;
 use App\Models\SignatureRequest;
 use App\Models\Tenant;
@@ -48,6 +49,40 @@ class ApiFlowJobsTest extends TestCase
         $this->assertSame('REJECTED', $request->status->value);
         $this->assertSame('La ciudad proporcionada no es válida', $request->last_error['message']);
         $this->assertNotNull($request->closed_at);
+    }
+
+    public function test_liveness_mismatch_reported_as_retryable_session_allows_a_new_attempt(): void
+    {
+        // Respuesta real observada en el sandbox: 409 con sessionStatus RETRYABLE y sin remainingAttempts.
+        $this->fakeFirmaSegura([
+            self::FS_BASE.'/signature/api/session/*/face-liveness' => Http::response([
+                'status' => 409, 'error' => 'Conflict',
+                'message' => 'El rostro del titular no coincide con su cédula; le quedan intentos disponibles.',
+                'sessionStatus' => 'RETRYABLE',
+            ], 409),
+        ]);
+        $request = $this->makeRequest(RequestStatus::validating());
+
+        (new SubmitFaceLiveness($request, 'aws-liveness-1'))->handle();
+
+        $request->refresh();
+        $this->assertSame('FAILED_RETRYABLE', $request->status->value);
+        $this->assertSame('RETRYABLE', $request->provider_status);
+        $this->assertNull($request->closed_at);
+    }
+
+    public function test_liveness_with_exhausted_attempts_rejects_the_request(): void
+    {
+        $this->fakeFirmaSegura([
+            self::FS_BASE.'/signature/api/session/*/face-liveness' => Http::response([
+                'message' => 'Intentos de prueba de vida agotados', 'sessionStatus' => 'REJECTED',
+            ], 409),
+        ]);
+        $request = $this->makeRequest(RequestStatus::validating());
+
+        (new SubmitFaceLiveness($request, 'aws-liveness-1'))->handle();
+
+        $this->assertSame('REJECTED', $request->fresh()->status->value);
     }
 
     public function test_failed_issuance_is_flagged_for_manual_review(): void

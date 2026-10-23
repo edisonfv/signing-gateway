@@ -696,10 +696,10 @@
     "semantic_hash": "66a4bc1da4b41515de42acd9933bdc83"
   },
   "routes/web.php": {
-    "mtime": 1790776605.0,
-    "seen": 1792726352.244729,
-    "ast_hash": "84625c52e743b1a4178bb27b7afb3615",
-    "semantic_hash": "84625c52e743b1a4178bb27b7afb3615"
+    "mtime": 1792730657.9309933,
+    "seen": 1792730725.2854662,
+    "ast_hash": "702b9640932c522cbb0a49b925b4887e",
+    "semantic_hash": ""
   },
   "tests/Concerns/InteractsWithSignedApi.php": {
     "mtime": 1792729794.537578,
@@ -756,10 +756,10 @@
     "semantic_hash": "7e567dc27e68d5b57bae16af07f68907"
   },
   "vite.config.js": {
-    "mtime": 1790776605.0,
-    "seen": 1792726352.2447338,
-    "ast_hash": "8ef22d264079dab94f6d36526b0cb1bc",
-    "semantic_hash": "8ef22d264079dab94f6d36526b0cb1bc"
+    "mtime": 1792730659.4271321,
+    "seen": 1792730725.2854755,
+    "ast_hash": "dd9f4f75f5e4dbd9e557c00d16fa6c05",
+    "semantic_hash": ""
   },
   "README.md": {
     "mtime": 1792729835.09368,
@@ -969,6 +969,30 @@
     "mtime": 1792729702.7808843,
     "seen": 1792729838.8838978,
     "ast_hash": "7b80f290a8be0a43bc1476ab33e140a6",
+    "semantic_hash": ""
+  },
+  "app/Http/Controllers/Dev/LivenessTestController.php": {
+    "mtime": 1792730657.8770785,
+    "seen": 1792730725.2853873,
+    "ast_hash": "a9fb3ca339dc47c83042507d43a9ebb3",
+    "semantic_hash": ""
+  },
+  "resources/js/dev/liveness.jsx": {
+    "mtime": 1792730658.7193885,
+    "seen": 1792730725.2854624,
+    "ast_hash": "35c91d49504c5e375d6fb918d36c1785",
+    "semantic_hash": ""
+  },
+  "resources/views/dev/liveness.blade.php": {
+    "mtime": 1792730658.698511,
+    "seen": 1792730725.285463,
+    "ast_hash": "bf700afba7c9c953390202b8c3471335",
+    "semantic_hash": ""
+  },
+  "tests/Feature/DevToolsExposureTest.php": {
+    "mtime": 1792730690.7843084,
+    "seen": 1792730725.2854705,
+    "ast_hash": "c37ff2569ef24126977a7db2f33e3a2c",
     "semantic_hash": ""
   }
 }

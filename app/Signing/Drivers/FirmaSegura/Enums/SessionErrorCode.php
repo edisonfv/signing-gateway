@@ -16,6 +16,7 @@ use Spatie\Enum\Laravel\Enum;
  * @method static self taskOrderViolation()
  * @method static self weakPassword()
  * @method static self duplicateReferenceTransaction()
+ * @method static self faceLivenessFailed()
  */
 final class SessionErrorCode extends Enum
 {
@@ -29,6 +30,7 @@ final class SessionErrorCode extends Enum
             'taskOrderViolation' => 'TASK_ORDER_VIOLATION',
             'weakPassword' => 'WEAK_PASSWORD',
             'duplicateReferenceTransaction' => 'DUPLICATE_REFERENCE_TRANSACTION',
+            'faceLivenessFailed' => 'FACE_LIVENESS_FAILED',
         ];
     }
 
@@ -42,6 +44,7 @@ final class SessionErrorCode extends Enum
             'taskOrderViolation' => 'Hay pasos previos pendientes',
             'weakPassword' => 'La contraseña no cumple la política',
             'duplicateReferenceTransaction' => 'Ya existe una solicitud en proceso con esa referencia',
+            'faceLivenessFailed' => 'El rostro no coincide con la cédula; puede reintentar (observado en sandbox, no documentado)',
         ];
     }
 }

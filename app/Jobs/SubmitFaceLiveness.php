@@ -17,8 +17,9 @@ use Illuminate\Queue\Attributes\Tries;
  * Tramo C, paso 1: envía al proveedor el resultado de la prueba de vida hecha en el navegador.
  *
  * - Coincide: la solicitud sigue en VALIDATING y IssueCertificate (siguiente en la cadena) emite.
- * - No coincide y quedan intentos: FAILED_RETRYABLE; el SaaS puede pedir otra sesión de prueba de vida.
- * - Intentos agotados o titular inexistente: REJECTED.
+ * - No coincide y el proveedor deja reintentar (sessionStatus RETRYABLE/ERROR/FAILED o
+ *   remainingAttempts > 0): FAILED_RETRYABLE; el SaaS puede pedir otra sesión de prueba de vida.
+ * - Intentos agotados (sessionStatus REJECTED) o titular inexistente: REJECTED.
  */
 #[Tries(3)]
 #[Backoff(5, 15)]
@@ -37,7 +38,7 @@ class SubmitFaceLiveness implements ShouldBeEncrypted, ShouldQueue
                 throw $exception;
             }
 
-            if ($exception->httpStatus === 409 && ($exception->remainingAttempts ?? 0) > 0) {
+            if ($exception->httpStatus === 409 && $exception->allowsApplicantRetry()) {
                 $this->advance(RequestStatus::failedRetryable(), SessionStep::liveness(), 'session.liveness_failed', [
                     'provider_status' => $exception->sessionStatus,
                     'remaining_liveness_attempts' => $exception->remainingAttempts,

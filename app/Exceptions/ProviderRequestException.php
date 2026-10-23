@@ -2,6 +2,7 @@
 
 namespace App\Exceptions;
 
+use App\Signing\Drivers\FirmaSegura\Enums\SessionStatus;
 use Illuminate\Http\Client\Response;
 use RuntimeException;
 
@@ -38,6 +39,25 @@ class ProviderRequestException extends RuntimeException
     public function isRetryable(): bool
     {
         return $this->httpStatus >= 500 || $this->httpStatus === 429;
+    }
+
+    /**
+     * El titular puede repetir el paso (p. ej. otra prueba de vida).
+     *
+     * Se decide por el estado de sesión que informa el proveedor: el sandbox responde
+     * sessionStatus RETRYABLE sin remainingAttempts, aunque la documentación muestra FAILED.
+     */
+    public function allowsApplicantRetry(): bool
+    {
+        if ($this->remainingAttempts !== null) {
+            return $this->remainingAttempts > 0;
+        }
+
+        return in_array($this->sessionStatus, [
+            SessionStatus::retryable()->value,
+            SessionStatus::error()->value,
+            SessionStatus::failed()->value,
+        ], true);
     }
 
     /**
