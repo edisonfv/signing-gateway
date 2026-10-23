@@ -78,7 +78,7 @@ Pasos en Apidog:
 ## Producción
 
 - Llaves y token del proveedor como secretos del servidor, o `.env` cifrado con `php artisan env:encrypt --env=production`.
-- Workers de cola (`php artisan queue:work --queue=default,notifications`) y `php artisan schedule:work` (o cron).
+- Workers de cola (`php artisan queue:work --queue=interactive,default,notifications`) y `php artisan schedule:work` (o cron).
 
 ## Pruebas
 

@@ -2,7 +2,12 @@
 
 namespace App\Providers;
 
+use App\Jobs\CreateProviderSession;
 use App\Jobs\DeliverClientNotification;
+use App\Jobs\IssueCertificate;
+use App\Jobs\RequestLivenessSession;
+use App\Jobs\SubmitFaceLiveness;
+use App\Jobs\ValidateCivilRegistry;
 use App\Models\ApiClient;
 use App\Models\PersonalAccessToken;
 use App\Security\BlindIndex;
@@ -36,6 +41,13 @@ class AppServiceProvider extends ServiceProvider
         Model::shouldBeStrict(! $this->app->isProduction());
 
         Queue::route(DeliverClientNotification::class, queue: 'notifications');
+        Queue::route([
+            CreateProviderSession::class,
+            ValidateCivilRegistry::class,
+            RequestLivenessSession::class,
+            SubmitFaceLiveness::class,
+            IssueCertificate::class,
+        ], queue: 'interactive');
 
         RateLimiter::for('api-client', function (Request $request) {
             $client = $request->user();
