@@ -65,6 +65,16 @@ Pasos en Apidog:
    del proyecto. Agrega `Authorization`, `X-Timestamp`, `X-Nonce` y `X-Signature` a cada petición.
 4. Probar con **Diagnóstico → Probar credencial** (`GET /v1/ping`).
 
+## Grafo de conocimiento (graphify)
+
+`graphify-out/` contiene el grafo del proyecto para agentes de IA: `graph.json` y `GRAPH_REPORT.md`.
+
+- Se actualiza solo después de cada `git commit` (hook post-commit, solo código, sin costo de LLM).
+- Consultas: `graphify query "¿cómo se valida la firma HMAC?"`, `graphify path "ApiClient" "UsageGuard"`, `graphify explain "KeyRing"`.
+- Si cambian los documentos (`docs/`, `README.md`), ejecutar `/graphify --update` desde Claude Code.
+- `.graphifyignore` excluye lo generado (Boost, OpenAPI, `storage/`…). Instalación en otra máquina:
+  `uv tool install graphifyy`, luego `graphify hook install` y `graphify claude install`.
+
 ## Producción
 
 - Llaves y token del proveedor como secretos del servidor, o `.env` cifrado con `php artisan env:encrypt --env=production`.

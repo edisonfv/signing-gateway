@@ -1,0 +1,16 @@
+# graphify: además de .gitignore, excluir lo generado o ajeno al dominio.
+graphify-out/
+.claude/
+.junie/
+.ai/
+CLAUDE.md
+AGENTS.md
+boost.json
+.mcp.json
+docs/openapi.json
+storage/
+bootstrap/cache/
+public/
+resources/catalogs/
+package.json
+composer.lock
