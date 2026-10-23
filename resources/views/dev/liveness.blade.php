@@ -31,7 +31,12 @@
                 @endforelse
             </section>
 
-            @if ($selected)
+            @if ($selected && ! $pending->contains($selected))
+                <section class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    La solicitud {{ $selected->id }} está en <strong>{{ $selected->status->value }}</strong> y no espera una prueba de vida.
+                    Elija una de la lista.
+                </section>
+            @elseif ($selected)
                 <section id="liveness-root"
                          data-request-id="{{ $selected->id }}"
                          data-status="{{ $selected->status->value }}"
