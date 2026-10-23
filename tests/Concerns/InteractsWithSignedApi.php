@@ -34,9 +34,9 @@ trait InteractsWithSignedApi
         $timestamp = (string) ($timestamp ?? now()->getTimestamp());
         $nonce ??= Str::random(32);
 
-        // El servidor recibe la query codificada; se firma exactamente esa.
+        // La firma usa la query decodificada, como la ve el cliente.
         $sent = Request::create($uri);
-        $query = (string) $sent->server->get('QUERY_STRING', '');
+        $query = rawurldecode((string) $sent->server->get('QUERY_STRING', ''));
         $signature = RequestSignature::sign(
             $secret ?? $this->credentials['signing_secret'],
             RequestSignature::canonical('GET', '/'.ltrim($sent->path(), '/').($query ? "?{$query}" : ''), $timestamp, $nonce, ''),

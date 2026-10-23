@@ -35,7 +35,7 @@ notificaciones, que se configuran en el admin del SaaS. Cada petición debe llev
 - `Authorization: Bearer <token>`
 - `X-Timestamp` (epoch en segundos), `X-Nonce` (16–64 caracteres, único)
 - `X-Signature`: HMAC-SHA256 con el secreto de firma sobre
-  `MÉTODO\n/ruta?query\nX-Timestamp\nX-Nonce\nsha256(cuerpo)`, con la query exactamente como se envía
+  `MÉTODO\n/ruta?query\nX-Timestamp\nX-Nonce\nsha256(cuerpo)`, con la query decodificada y en el orden enviado
 
 Prueba de conexión: `GET /api/v1/ping`.
 
@@ -47,6 +47,23 @@ El gateway notifica al SaaS (`--notification-url`) con `X-Gateway-Timestamp` y
 - `GET /api/v1/provinces?filter[name]=…&sort=name` y `GET /api/v1/provinces/{id}/cities`: en base de datos,
   cargadas por `ProvinceSeeder` desde `resources/catalogs/firmasegura/cities.json`.
 - `GET /api/v1/catalogs/{application-types|periods}`: desde enums de spatie/laravel-enum.
+
+## Documentación y pruebas en Apidog
+
+La especificación OpenAPI la genera Scramble desde el código:
+
+- En local: `https://signing-gateway.local.com/docs/api` (UI) y `/docs/api.json`.
+- Archivo para importar: `docs/openapi.json`, que se regenera con `php artisan scramble:export`.
+
+Pasos en Apidog:
+
+1. **Importar**: Configuración del proyecto → Importar datos → OpenAPI/Swagger → `docs/openapi.json`,
+   con "sobrescribir los existentes" en cada actualización.
+2. **Entorno** `local`: URL base `https://signing-gateway.local.com/api`; variables `token` y
+   `signingSecret` como **valor local** (no se sincronizan a la nube).
+3. **Firma**: pegar `docs/apidog/firma-hmac.js` como script personalizado en el pre-procesador
+   del proyecto. Agrega `Authorization`, `X-Timestamp`, `X-Nonce` y `X-Signature` a cada petición.
+4. Probar con **Diagnóstico → Probar credencial** (`GET /v1/ping`).
 
 ## Producción
 

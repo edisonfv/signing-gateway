@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
  *
  * Cadena canónica (una línea por elemento):
  *   MÉTODO
- *   /ruta?query
+ *   /ruta?query (query decodificada, en el orden enviado)
  *   X-Timestamp (epoch en segundos)
  *   X-Nonce
  *   sha256 hex del cuerpo crudo
@@ -34,8 +34,9 @@ class RequestSignature
 
     public static function canonicalFromRequest(Request $request): string
     {
-        // Query string tal como llegó (sin reordenar ni recodificar), igual a la que firmó el cliente.
-        $query = (string) $request->server->get('QUERY_STRING', '');
+        // Query en el orden en que llegó pero decodificada, para que la firma no dependa de si el
+        // cliente codifica o no caracteres como [ ] (filter[name] vs filter%5Bname%5D).
+        $query = rawurldecode((string) $request->server->get('QUERY_STRING', ''));
 
         return self::canonical(
             $request->getMethod(),

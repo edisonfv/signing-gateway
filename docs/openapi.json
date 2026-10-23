@@ -1,0 +1,610 @@
+{
+    "openapi": "3.1.2",
+    "info": {
+        "title": "Signing Gateway API",
+        "version": "0.0.1",
+        "description": "API interna del Signing Gateway para los clientes del SaaS.\n\n**Autenticaci\u00f3n (todas las rutas):**\n\n1. `Authorization: Bearer <token>` \u2014 token de acceso emitido con `php artisan gateway:client:create`.\n2. `X-Timestamp`, `X-Nonce` y `X-Signature` \u2014 firma HMAC-SHA256 de la petici\u00f3n con el secreto de firma:\n   `M\u00c9TODO\n/ruta?query\nX-Timestamp\nX-Nonce\nsha256(cuerpo)`.\n\nEn Apidog la firma la calcula el script de pre-procesamiento `docs/apidog/firma-hmac.js`."
+    },
+    "servers": [
+        {
+            "url": "https://signing-gateway.local.com/api"
+        }
+    ],
+    "tags": [
+        {
+            "name": "Diagn\u00f3stico",
+            "description": "Verificaci\u00f3n de la credencial configurada en el SaaS."
+        },
+        {
+            "name": "Cat\u00e1logos",
+            "description": "Datos de referencia para armar los formularios del SaaS."
+        }
+    ],
+    "security": [
+        {
+            "http": []
+        }
+    ],
+    "paths": {
+        "/v1/ping": {
+            "get": {
+                "operationId": "v1.ping",
+                "description": "Permite al admin del SaaS comprobar el token y la firma HMAC. Devuelve el cliente,\nsu tenant, las abilities del token y su vencimiento.",
+                "summary": "Probar credencial",
+                "tags": [
+                    "Diagn\u00f3stico"
+                ],
+                "parameters": [
+                    {
+                        "name": "X-Timestamp",
+                        "in": "header",
+                        "required": true,
+                        "description": "Epoch en segundos. Ventana de \u00b15 minutos.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "1761200000"
+                    },
+                    {
+                        "name": "X-Nonce",
+                        "in": "header",
+                        "required": true,
+                        "description": "Valor \u00fanico por petici\u00f3n (16\u201364 caracteres).",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "b1f0c3e9a7d24c6f9e2a5b8c7d1e0f3a"
+                    },
+                    {
+                        "name": "X-Signature",
+                        "in": "header",
+                        "required": true,
+                        "description": "HMAC-SHA256 hex de M\u00c9TODO\\n/ruta?query\\nX-Timestamp\\nX-Nonce\\nsha256(cuerpo) con el secreto de firma.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "0000000000000000000000000000000000000000000000000000000000000000"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "client": {},
+                                        "tenant": {
+                                            "type": "string"
+                                        },
+                                        "abilities": {
+                                            "type": "string"
+                                        },
+                                        "token_expires_at": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "client",
+                                        "tenant",
+                                        "abilities",
+                                        "token_expires_at"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token inv\u00e1lido o vencido, o firma, timestamp o nonce inv\u00e1lidos.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Credencial revocada, tenant suspendido, IP no permitida o token sin la ability requerida.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Se super\u00f3 el l\u00edmite de peticiones de la credencial.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/catalogs/{catalog}": {
+            "get": {
+                "operationId": "v1.catalogs.show",
+                "description": "Valores (`value`) y etiquetas (`label`) de un cat\u00e1logo basado en enums.",
+                "summary": "Obtener cat\u00e1logo",
+                "tags": [
+                    "Cat\u00e1logos"
+                ],
+                "parameters": [
+                    {
+                        "name": "catalog",
+                        "in": "path",
+                        "required": true,
+                        "description": "Cat\u00e1logo: `application-types` o `periods`.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "periods"
+                    },
+                    {
+                        "name": "X-Timestamp",
+                        "in": "header",
+                        "required": true,
+                        "description": "Epoch en segundos. Ventana de \u00b15 minutos.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "1761200000"
+                    },
+                    {
+                        "name": "X-Nonce",
+                        "in": "header",
+                        "required": true,
+                        "description": "Valor \u00fanico por petici\u00f3n (16\u201364 caracteres).",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "b1f0c3e9a7d24c6f9e2a5b8c7d1e0f3a"
+                    },
+                    {
+                        "name": "X-Signature",
+                        "in": "header",
+                        "required": true,
+                        "description": "HMAC-SHA256 hex de M\u00c9TODO\\n/ruta?query\\nX-Timestamp\\nX-Nonce\\nsha256(cuerpo) con el secreto de firma.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "0000000000000000000000000000000000000000000000000000000000000000"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {}
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "description": "Token inv\u00e1lido o vencido, o firma, timestamp o nonce inv\u00e1lidos.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Credencial revocada, tenant suspendido, IP no permitida o token sin la ability requerida.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Se super\u00f3 el l\u00edmite de peticiones de la credencial.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/provinces": {
+            "get": {
+                "operationId": "v1.provinces.index",
+                "description": "Provincias con el nombre exacto que espera el proveedor y la cantidad de ciudades.",
+                "summary": "Listar provincias",
+                "tags": [
+                    "Cat\u00e1logos"
+                ],
+                "parameters": [
+                    {
+                        "name": "filter[name]",
+                        "in": "query",
+                        "description": "Filtra por coincidencia parcial del nombre.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "santo"
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Orden: `name` o `-name`.",
+                        "schema": {
+                            "type": "string",
+                            "default": "name"
+                        },
+                        "example": "name"
+                    },
+                    {
+                        "name": "X-Timestamp",
+                        "in": "header",
+                        "required": true,
+                        "description": "Epoch en segundos. Ventana de \u00b15 minutos.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "1761200000"
+                    },
+                    {
+                        "name": "X-Nonce",
+                        "in": "header",
+                        "required": true,
+                        "description": "Valor \u00fanico por petici\u00f3n (16\u201364 caracteres).",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "b1f0c3e9a7d24c6f9e2a5b8c7d1e0f3a"
+                    },
+                    {
+                        "name": "X-Signature",
+                        "in": "header",
+                        "required": true,
+                        "description": "HMAC-SHA256 hex de M\u00c9TODO\\n/ruta?query\\nX-Timestamp\\nX-Nonce\\nsha256(cuerpo) con el secreto de firma.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "0000000000000000000000000000000000000000000000000000000000000000"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `ProvinceResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ProvinceResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token inv\u00e1lido o vencido, o firma, timestamp o nonce inv\u00e1lidos.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Credencial revocada, tenant suspendido, IP no permitida o token sin la ability requerida.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Se super\u00f3 el l\u00edmite de peticiones de la credencial.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/provinces/{province}/cities": {
+            "get": {
+                "operationId": "v1.provinces.cities.index",
+                "description": "Ciudades de la provincia indicada (UUID de `GET /v1/provinces`).",
+                "summary": "Listar ciudades de una provincia",
+                "tags": [
+                    "Cat\u00e1logos"
+                ],
+                "parameters": [
+                    {
+                        "name": "province",
+                        "in": "path",
+                        "required": true,
+                        "description": "The province ID",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "filter[name]",
+                        "in": "query",
+                        "description": "Filtra por coincidencia parcial del nombre.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "san"
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Orden: `name` o `-name`.",
+                        "schema": {
+                            "type": "string",
+                            "default": "name"
+                        },
+                        "example": "name"
+                    },
+                    {
+                        "name": "X-Timestamp",
+                        "in": "header",
+                        "required": true,
+                        "description": "Epoch en segundos. Ventana de \u00b15 minutos.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "1761200000"
+                    },
+                    {
+                        "name": "X-Nonce",
+                        "in": "header",
+                        "required": true,
+                        "description": "Valor \u00fanico por petici\u00f3n (16\u201364 caracteres).",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "b1f0c3e9a7d24c6f9e2a5b8c7d1e0f3a"
+                    },
+                    {
+                        "name": "X-Signature",
+                        "in": "header",
+                        "required": true,
+                        "description": "HMAC-SHA256 hex de M\u00c9TODO\\n/ruta?query\\nX-Timestamp\\nX-Nonce\\nsha256(cuerpo) con el secreto de firma.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "0000000000000000000000000000000000000000000000000000000000000000"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `CityResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CityResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "description": "Token inv\u00e1lido o vencido, o firma, timestamp o nonce inv\u00e1lidos.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Credencial revocada, tenant suspendido, IP no permitida o token sin la ability requerida.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Se super\u00f3 el l\u00edmite de peticiones de la credencial.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "http": {
+                "type": "http",
+                "description": "Token de acceso del cliente (admin del SaaS).",
+                "scheme": "bearer"
+            }
+        },
+        "schemas": {
+            "CityResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "province_id": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "province_id"
+                ],
+                "title": "CityResource"
+            },
+            "ProvinceResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "cities_count": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name"
+                ],
+                "title": "ProvinceResource"
+            }
+        },
+        "responses": {
+            "ModelNotFoundException": {
+                "description": "Not found",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
