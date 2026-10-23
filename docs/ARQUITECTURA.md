@@ -788,7 +788,8 @@ Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `Transf
 ### 16.8 Preguntas para FirmaSegura (Flujo por API)
 
 1. **Emisión:** si la respuesta de `issuance` se pierde (timeout), ¿se puede volver a pedir el certificado? ¿Con qué endpoint?
-2. ¿`tracking` y `cancel` aplican a sesiones del Flujo por API?
+2. ~~¿`tracking` aplica a sesiones del Flujo por API?~~ **Sí** (verificado en sandbox 2026-10-23: `GET /signature/traditional/session/{id}/tracking` → `IN_PROGRESS`, etapa `BIOMETRIC`). Falta confirmar `cancel`.
+   - Las cédulas de prueba del sandbox (1801020101…) no cumplen el dígito verificador: `GATEWAY_STRICT_IDENTIFICATION` solo lo exige en producción.
 3. ¿El Flujo por API admite `LEGAL_REPRESENTATIVE`? ¿Con qué campos?
 4. ¿Hay validación de video para mayores de 65 en este flujo? (Es un ítem del checklist).
 5. ¿Qué SDK y versión de FaceLiveness recomiendan para el navegador? ¿Cuál es el máximo de intentos?

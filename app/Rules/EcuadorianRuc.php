@@ -20,7 +20,7 @@ class EcuadorianRuc implements ValidationRule
     {
         if (! is_string($value)
             || preg_match('/^\d{10}001$/', $value) !== 1
-            || ! EcuadorianIdentification::isValid(substr($value, 0, 10))) {
+            || ! EcuadorianIdentification::isValid(substr($value, 0, 10), config('gateway.strict_identification'))) {
             $fail('El campo :attribute debe ser un RUC de persona natural válido (cédula + 001).');
         }
     }

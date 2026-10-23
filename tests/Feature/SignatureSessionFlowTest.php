@@ -142,6 +142,7 @@ class SignatureSessionFlowTest extends TestCase
     public function test_applicant_data_is_validated(): void
     {
         $this->fakeFirmaSegura();
+        config(['gateway.strict_identification' => true]);
 
         $this->signedJson('POST', '/api/v1/signature-sessions', $this->sessionPayload([
             'application_type' => 'LEGAL_REPRESENTATIVE',
@@ -158,6 +159,21 @@ class SignatureSessionFlowTest extends TestCase
             'application_type' => 'NATURAL_PERSON_RUC',
             'applicant' => ['person_ruc' => '1710034065001'],
         ]), ['Idempotency-Key' => 'op-3'])->assertAccepted();
+    }
+
+    public function test_sandbox_accepts_provider_test_identifications_without_check_digit(): void
+    {
+        $this->fakeFirmaSegura();
+        Bus::fake();
+        config(['gateway.strict_identification' => false]);
+
+        $this->signedJson('POST', '/api/v1/signature-sessions', $this->sessionPayload([
+            'applicant' => ['identification_number' => '1801020101'],
+        ]), ['Idempotency-Key' => 'op-1'])->assertAccepted();
+
+        $this->signedJson('POST', '/api/v1/signature-sessions', $this->sessionPayload([
+            'applicant' => ['identification_number' => '18010201'],
+        ]), ['Idempotency-Key' => 'op-2'])->assertJsonValidationErrors('applicant.identification_number');
     }
 
     public function test_underage_applicant_is_rejected_by_the_civil_registry(): void

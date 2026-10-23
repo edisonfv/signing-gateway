@@ -17,6 +17,10 @@ return [
     // Ambiente de proveedor que usa esta instancia: sandbox | production.
     'environment' => env('GATEWAY_PROVIDER_ENVIRONMENT', 'sandbox'),
 
+    // Verificar el dígito verificador de cédula/RUC. Las personas de prueba del sandbox de
+    // FirmaSegura (1801020101…) no lo cumplen, así que por defecto solo se exige en producción.
+    'strict_identification' => (bool) env('GATEWAY_STRICT_IDENTIFICATION', env('GATEWAY_PROVIDER_ENVIRONMENT', 'sandbox') === 'production'),
+
     // Driver por defecto de SignatureProviderManager.
     'default_provider' => env('GATEWAY_DEFAULT_PROVIDER', 'firmasegura'),
 

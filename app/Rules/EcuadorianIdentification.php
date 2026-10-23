@@ -19,15 +19,22 @@ class EcuadorianIdentification implements ValidationRule
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if (! is_string($value) || ! self::isValid($value)) {
+        if (! is_string($value) || ! self::isValid($value, config('gateway.strict_identification'))) {
             $fail('El campo :attribute no es una cédula ecuatoriana válida.');
         }
     }
 
-    public static function isValid(string $identification): bool
+    /**
+     * Con $strict = false solo se exigen 10 dígitos (datos de prueba del sandbox).
+     */
+    public static function isValid(string $identification, bool $strict = true): bool
     {
         if (preg_match('/^\d{10}$/', $identification) !== 1) {
             return false;
+        }
+
+        if (! $strict) {
+            return true;
         }
 
         $province = (int) substr($identification, 0, 2);
