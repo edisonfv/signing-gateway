@@ -32,6 +32,9 @@ Navegador del titular ──► Backend del SaaS ──(token + firma HMAC)─�
 
 Cada cliente del SaaS (tenant) tiene **su propia credencial**, limitada a su tenant. El operador del
 gateway la emite con `php artisan gateway:client:create` y entrega los valores una sola vez.
+Con `--ability=catalogs.view` emite una credencial que solo lee el catálogo (`GET /v1/products` y
+catálogos), como la que usa la plataforma del SaaS para sincronizar ofertas; `gateway:client:revoke`
+revoca una credencial al instante.
 
 El admin del SaaS debe permitir configurar por cliente:
 
