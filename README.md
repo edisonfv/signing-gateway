@@ -29,6 +29,15 @@ php artisan gateway:tenant:create <external_id> "<nombre>"
 php artisan gateway:client:create <external_id> "<nombre>" --ip=<ip o cidr> --public-key=<x25519 base64>
 ```
 
+Una credencial que solo lee el catálogo (la de la plataforma del SaaS) se limita con `--ability`, y
+cualquier credencial se revoca al instante:
+
+```bash
+php artisan gateway:client:create plataforma "Catálogo (solo lectura)" --ability=catalogs.view
+php artisan gateway:client:revoke <external_id> --list
+php artisan gateway:client:revoke <id del cliente>
+```
+
 Productos contratados por tenant (condiciones comerciales). Sin configurar, aplica `GATEWAY_DEFAULT_PRODUCTS`:
 
 ```bash

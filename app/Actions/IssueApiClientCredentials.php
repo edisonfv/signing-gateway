@@ -22,18 +22,29 @@ class IssueApiClientCredentials
 {
     /**
      * @param  array<int, string>  $allowedIps
+     * @param  array<int, string>  $abilities  subconjunto de PermissionName::forApiClients(); vacío = todas
      * @return array{client: ApiClient, token: string, signing_secret: string, notification_secret: string}
      */
-    public function __invoke(Tenant $tenant, string $name, array $allowedIps = [], ?string $deliveryPublicKey = null, ?string $notificationUrl = null): array
+    public function __invoke(Tenant $tenant, string $name, array $allowedIps = [], ?string $deliveryPublicKey = null, ?string $notificationUrl = null, array $abilities = []): array
     {
         if ($deliveryPublicKey !== null && ! SealedBox::isValidPublicKey($deliveryPublicKey)) {
             throw new InvalidArgumentException('La llave pública de entrega debe ser una llave X25519 en base64 (32 bytes).');
         }
 
+        $allowed = array_map(fn (PermissionName $permission) => $permission->value, PermissionName::forApiClients());
+        $unknown = array_diff($abilities, $allowed);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException('Abilities no permitidas para un cliente: '.implode(', ', $unknown).'. Válidas: '.implode(', ', $allowed).'.');
+        }
+
+        // Una credencial solo de lectura (p. ej. el catálogo de la plataforma) no puede emitir ni retirar.
+        $abilities = $abilities === [] ? $allowed : array_values(array_unique($abilities));
+
         $signingSecret = Str::random(64);
         $notificationSecret = Str::random(64);
 
-        return DB::transaction(function () use ($tenant, $name, $allowedIps, $deliveryPublicKey, $notificationUrl, $signingSecret, $notificationSecret) {
+        return DB::transaction(function () use ($tenant, $name, $allowedIps, $deliveryPublicKey, $notificationUrl, $signingSecret, $notificationSecret, $abilities) {
             $client = ApiClient::create([
                 'tenant_id' => $tenant->getKey(),
                 'name' => $name,
@@ -48,11 +59,11 @@ class IssueApiClientCredentials
 
             $token = $client->createToken(
                 $name,
-                array_map(fn (PermissionName $permission) => $permission->value, PermissionName::forApiClients()),
+                $abilities,
                 now()->addDays(config('gateway.api_clients.token_ttl_days')),
             );
 
-            AuditLog::record('api_client.issued', subject: $client, context: ['tenant' => $tenant->getKey()], ip: request()?->ip() ?? 'cli');
+            AuditLog::record('api_client.issued', subject: $client, context: ['tenant' => $tenant->getKey(), 'abilities' => $abilities], ip: request()?->ip() ?? 'cli');
 
             return [
                 'client' => $client,

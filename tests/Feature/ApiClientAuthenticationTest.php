@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Actions\IssueApiClientCredentials;
 use App\Models\AuditLog;
 use App\Models\PersonalAccessToken;
 use App\Models\User;
 use App\Security\RequestSignature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Tests\Concerns\InteractsWithSignedApi;
 use Tests\TestCase;
 
@@ -78,6 +80,34 @@ class ApiClientAuthenticationTest extends TestCase
         $this->credentials['client']->update(['revoked_at' => now()]);
 
         $this->signedGet('/api/v1/ping')->assertForbidden();
+    }
+
+    public function test_a_catalog_only_credential_reads_the_catalog_but_cannot_issue(): void
+    {
+        $this->credentials = app(IssueApiClientCredentials::class)($this->tenant, 'Plataforma: catálogo', abilities: ['catalogs.view']);
+
+        $this->signedGet('/api/v1/catalogs/periods')->assertOk();
+        $this->signedGet('/api/v1/signature-sessions')->assertForbidden();
+        $this->signedJson('POST', '/api/v1/signature-sessions', ['product' => 'HEADLESS'])->assertForbidden();
+    }
+
+    public function test_a_credential_cannot_get_abilities_of_staff(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        app(IssueApiClientCredentials::class)($this->tenant, 'Intento', abilities: ['providers.manage']);
+    }
+
+    public function test_the_revoke_command_disables_the_client_at_once(): void
+    {
+        $client = $this->credentials['client'];
+
+        $this->artisan('gateway:client:revoke', ['client' => $client->getKey()])->assertSuccessful();
+
+        $this->assertNotNull($client->fresh()->revoked_at);
+        $this->assertSame(0, $client->tokens()->count());
+        $this->assertTrue(AuditLog::query()->where('action', 'api_client.revoked')->exists());
+        $this->signedGet('/api/v1/ping')->assertUnauthorized();
     }
 
     public function test_suspended_tenant_is_rejected(): void
