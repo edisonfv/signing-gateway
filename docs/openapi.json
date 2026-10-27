@@ -26,6 +26,10 @@
         {
             "name": "Firmas Regulares",
             "description": "Validaci\u00f3n por documentos a cargo de operadores del proveedor."
+        },
+        {
+            "name": "Alta de afiliados",
+            "description": "Solo para la credencial de alta de la plataforma (ability clients.manage)."
         }
     ],
     "security": [
@@ -2434,6 +2438,418 @@
                     }
                 }
             }
+        },
+        "/v1/admin/tenants/{externalId}": {
+            "put": {
+                "operationId": "v1.admin.tenants.update",
+                "description": "Idempotente por `external_id` (el id del afiliado en el SaaS): la primera vez lo crea,\ndespu\u00e9s actualiza su nombre y, si se env\u00edan, sus productos contratados.",
+                "summary": "Registrar o actualizar un afiliado",
+                "tags": [
+                    "Alta de afiliados"
+                ],
+                "parameters": [
+                    {
+                        "name": "externalId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "X-Timestamp",
+                        "in": "header",
+                        "required": true,
+                        "description": "Epoch en segundos. Ventana de \u00b15 minutos.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "1761200000"
+                    },
+                    {
+                        "name": "X-Nonce",
+                        "in": "header",
+                        "required": true,
+                        "description": "Valor \u00fanico por petici\u00f3n (16\u201364 caracteres).",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "b1f0c3e9a7d24c6f9e2a5b8c7d1e0f3a"
+                    },
+                    {
+                        "name": "X-Signature",
+                        "in": "header",
+                        "required": true,
+                        "description": "HMAC-SHA256 hex de M\u00c9TODO\\n/ruta?query\\nX-Timestamp\\nX-Nonce\\nsha256(cuerpo) con el secreto de firma.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "0000000000000000000000000000000000000000000000000000000000000000"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpsertTenantRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "description": "Token inv\u00e1lido o vencido, o firma, timestamp o nonce inv\u00e1lidos.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Credencial revocada, tenant suspendido, IP no permitida o token sin la ability requerida.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Se super\u00f3 el l\u00edmite de peticiones de la credencial.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/admin/tenants/{externalId}/clients": {
+            "post": {
+                "operationId": "v1.admin.tenants.clients.store",
+                "description": "Devuelve el token y los secretos UNA sola vez; el SaaS los guarda cifrados. La credencial\ntiene las abilities de un cliente (nunca clients.manage) y vence seg\u00fan la configuraci\u00f3n.",
+                "summary": "Emitir la credencial de un afiliado",
+                "tags": [
+                    "Alta de afiliados"
+                ],
+                "parameters": [
+                    {
+                        "name": "externalId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "X-Timestamp",
+                        "in": "header",
+                        "required": true,
+                        "description": "Epoch en segundos. Ventana de \u00b15 minutos.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "1761200000"
+                    },
+                    {
+                        "name": "X-Nonce",
+                        "in": "header",
+                        "required": true,
+                        "description": "Valor \u00fanico por petici\u00f3n (16\u201364 caracteres).",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "b1f0c3e9a7d24c6f9e2a5b8c7d1e0f3a"
+                    },
+                    {
+                        "name": "X-Signature",
+                        "in": "header",
+                        "required": true,
+                        "description": "HMAC-SHA256 hex de M\u00c9TODO\\n/ruta?query\\nX-Timestamp\\nX-Nonce\\nsha256(cuerpo) con el secreto de firma.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "0000000000000000000000000000000000000000000000000000000000000000"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreApiClientRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "client": {},
+                                        "token": {
+                                            "type": "string"
+                                        },
+                                        "signing_secret": {
+                                            "type": "string"
+                                        },
+                                        "notification_secret": {
+                                            "type": "string"
+                                        },
+                                        "token_expires_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "client",
+                                        "token",
+                                        "signing_secret",
+                                        "notification_secret",
+                                        "token_expires_at"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "description": "Token inv\u00e1lido o vencido, o firma, timestamp o nonce inv\u00e1lidos.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Credencial revocada, tenant suspendido, IP no permitida o token sin la ability requerida.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Se super\u00f3 el l\u00edmite de peticiones de la credencial.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/admin/clients/{client}": {
+            "delete": {
+                "operationId": "v1.admin.clients.destroy",
+                "description": "Sus tokens dejan de funcionar al instante. Se usa al renovar: primero se emite y guarda la\nnueva, despu\u00e9s se revoca la anterior. La credencial de alta no puede revocarse a s\u00ed misma.",
+                "summary": "Revocar una credencial",
+                "tags": [
+                    "Alta de afiliados"
+                ],
+                "parameters": [
+                    {
+                        "name": "client",
+                        "in": "path",
+                        "required": true,
+                        "description": "The client ID",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "X-Timestamp",
+                        "in": "header",
+                        "required": true,
+                        "description": "Epoch en segundos. Ventana de \u00b15 minutos.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "1761200000"
+                    },
+                    {
+                        "name": "X-Nonce",
+                        "in": "header",
+                        "required": true,
+                        "description": "Valor \u00fanico por petici\u00f3n (16\u201364 caracteres).",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "b1f0c3e9a7d24c6f9e2a5b8c7d1e0f3a"
+                    },
+                    {
+                        "name": "X-Signature",
+                        "in": "header",
+                        "required": true,
+                        "description": "HMAC-SHA256 hex de M\u00c9TODO\\n/ruta?query\\nX-Timestamp\\nX-Nonce\\nsha256(cuerpo) con el secreto de firma.",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "0000000000000000000000000000000000000000000000000000000000000000"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "client": {},
+                                        "revoked_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "client",
+                                        "revoked_at"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "Una credencial no puede revocarse a s\u00ed misma."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "description": "Token inv\u00e1lido o vencido, o firma, timestamp o nonce inv\u00e1lidos.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Credencial revocada, tenant suspendido, IP no permitida o token sin la ability requerida.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Se super\u00f3 el l\u00edmite de peticiones de la credencial.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -2606,6 +3022,42 @@
                     "closed_at"
                 ],
                 "title": "SignatureSessionResource"
+            },
+            "StoreApiClientRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Nombre de la credencial (p. ej. \"Comercial Demo \u00b7 2026-10-26\").",
+                        "maxLength": 255
+                    },
+                    "delivery_public_key": {
+                        "type": "string",
+                        "description": "Llave p\u00fablica X25519 en base64 con la que se sellan los certificados de este afiliado.",
+                        "maxLength": 100
+                    },
+                    "notification_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "Endpoint HTTPS del SaaS que recibe las notificaciones de este afiliado.",
+                        "maxLength": 500
+                    },
+                    "allowed_ips": {
+                        "type": "array",
+                        "description": "IP o CIDR desde los que se acepta la credencial; vac\u00edo = cualquiera.",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 64
+                        },
+                        "maxItems": 20
+                    }
+                },
+                "required": [
+                    "name",
+                    "delivery_public_key",
+                    "notification_url"
+                ],
+                "title": "StoreApiClientRequest"
             },
             "StoreLivenessResultRequest": {
                 "type": "object",
@@ -2845,28 +3297,34 @@
                     "terms"
                 ],
                 "title": "StoreSignatureSessionRequest"
-            }
-        },
-        "responses": {
-            "ModelNotFoundException": {
-                "description": "Not found",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string",
-                                    "description": "Error overview."
-                                }
-                            },
-                            "required": [
-                                "message"
+            },
+            "UpsertTenantRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Nombre del afiliado en el SaaS.",
+                        "maxLength": 255
+                    },
+                    "products": {
+                        "type": "array",
+                        "description": "Productos contratados; si se omite, se conservan (al crear: los de por defecto).",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "HEADLESS",
+                                "REGULAR"
                             ]
                         }
                     }
-                }
-            },
+                },
+                "required": [
+                    "name"
+                ],
+                "title": "UpsertTenantRequest"
+            }
+        },
+        "responses": {
             "ValidationException": {
                 "description": "Validation error",
                 "content": {
@@ -2892,6 +3350,25 @@
                             "required": [
                                 "message",
                                 "errors"
+                            ]
+                        }
+                    }
+                }
+            },
+            "ModelNotFoundException": {
+                "description": "Not found",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
                             ]
                         }
                     }

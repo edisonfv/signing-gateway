@@ -38,6 +38,9 @@ php artisan gateway:client:revoke <external_id> --list
 php artisan gateway:client:revoke <id del cliente>
 ```
 
+El SaaS puede dar de alta afiliados solo, con una credencial de alta de la plataforma
+(`--ability=clients.manage`, limitada a su IP): ver «Alta automática» en `docs/INTEGRACION_SAAS.md`.
+
 Productos contratados por tenant (condiciones comerciales). Sin configurar, aplica `GATEWAY_DEFAULT_PRODUCTS`:
 
 ```bash

@@ -1,6 +1,8 @@
 <?php
 
 use App\Enums\PermissionName;
+use App\Http\Controllers\Api\V1\Admin\ClientController as AdminClientController;
+use App\Http\Controllers\Api\V1\Admin\TenantController as AdminTenantController;
 use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Controllers\Api\V1\CertificateController;
 use App\Http\Controllers\Api\V1\LivenessCredentialController;
@@ -27,6 +29,13 @@ Route::prefix('v1')
     ->middleware(['auth:api', 'api.client', 'api.signature', 'throttle:api-client'])
     ->group(function () {
         Route::get('ping', PingController::class)->name('ping');
+
+        // Alta de afiliados desde el backoffice del SaaS: solo la credencial de alta de la plataforma.
+        Route::middleware('abilities:'.PermissionName::clientsManage()->value)->prefix('admin')->name('admin.')->group(function () {
+            Route::put('tenants/{externalId}', [AdminTenantController::class, 'update'])->where('externalId', '[A-Za-z0-9_-]{1,64}')->name('tenants.update');
+            Route::post('tenants/{externalId}/clients', [AdminClientController::class, 'store'])->where('externalId', '[A-Za-z0-9_-]{1,64}')->name('tenants.clients.store');
+            Route::delete('clients/{client}', [AdminClientController::class, 'destroy'])->whereUuid('client')->name('clients.destroy');
+        });
 
         Route::middleware('abilities:'.PermissionName::catalogsView()->value)->group(function () {
             Route::get('catalogs/{catalog}', CatalogController::class)->name('catalogs.show');
