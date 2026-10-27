@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\RevokeApiClient as RevokeApiClientAction;
 use App\Models\ApiClient;
-use App\Models\AuditLog;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -12,7 +12,7 @@ use Illuminate\Console\Command;
 #[Description('Revoca la credencial de un cliente del SaaS: sus tokens dejan de funcionar al instante')]
 class RevokeApiClient extends Command
 {
-    public function handle(): int
+    public function handle(RevokeApiClientAction $revoke): int
     {
         if ($this->option('list')) {
             $clients = ApiClient::query()
@@ -34,16 +34,11 @@ class RevokeApiClient extends Command
 
         $client = ApiClient::query()->findOrFail($this->argument('client'));
 
-        if ($client->revoked_at !== null) {
+        if (! $revoke($client)) {
             $this->components->info("El cliente «{$client->name}» ya estaba revocado.");
 
             return self::SUCCESS;
         }
-
-        $client->forceFill(['revoked_at' => now()])->save();
-        $client->tokens()->delete();
-
-        AuditLog::record('api_client.revoked', subject: $client, context: ['tenant' => $client->tenant_id], ip: 'cli');
 
         $this->components->info("Cliente «{$client->name}» revocado.");
 

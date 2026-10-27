@@ -36,6 +36,21 @@ Con `--ability=catalogs.view` emite una credencial que solo lee el catálogo (`G
 catálogos), como la que usa la plataforma del SaaS para sincronizar ofertas; `gateway:client:revoke`
 revoca una credencial al instante.
 
+### Alta automática desde el backoffice del SaaS
+
+Con una **credencial de alta** (ability `clients.manage`, emitida solo para la plataforma con
+`gateway:client:create plataforma "Alta de afiliados" --ability=clients.manage --ip=<ip del SaaS>`),
+el SaaS da de alta y renueva afiliados sin el operador:
+
+| Petición | Qué hace |
+|---|---|
+| `PUT /v1/admin/tenants/{external_id}` | Registra o actualiza el afiliado (`name`, `products` opcional). Idempotente. |
+| `POST /v1/admin/tenants/{external_id}/clients` | Emite su credencial con `delivery_public_key` y `notification_url`; devuelve token y secretos **una sola vez** y `token_expires_at`. |
+| `DELETE /v1/admin/clients/{client}` | Revoca una credencial (al renovar: primero se guarda la nueva). |
+
+Las credenciales emitidas así son de cliente normal: nunca reciben `clients.manage`. Cada uso queda
+en la auditoría con la credencial de alta como actor.
+
 El admin del SaaS debe permitir configurar por cliente:
 
 | Campo | Ejemplo | Cómo se guarda en el SaaS |

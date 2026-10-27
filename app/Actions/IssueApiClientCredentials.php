@@ -22,29 +22,32 @@ class IssueApiClientCredentials
 {
     /**
      * @param  array<int, string>  $allowedIps
-     * @param  array<int, string>  $abilities  subconjunto de PermissionName::forApiClients(); vacío = todas
-     * @return array{client: ApiClient, token: string, signing_secret: string, notification_secret: string}
+     * @param  array<int, string>  $abilities  subconjunto de PermissionName::forApiClients(), o clients.manage
+     *                                         para la credencial de alta de la plataforma; vacío = las de un cliente
+     * @return array{client: ApiClient, token: string, signing_secret: string, notification_secret: string, expires_at: string|null}
      */
-    public function __invoke(Tenant $tenant, string $name, array $allowedIps = [], ?string $deliveryPublicKey = null, ?string $notificationUrl = null, array $abilities = []): array
+    public function __invoke(Tenant $tenant, string $name, array $allowedIps = [], ?string $deliveryPublicKey = null, ?string $notificationUrl = null, array $abilities = [], ?ApiClient $issuedBy = null): array
     {
         if ($deliveryPublicKey !== null && ! SealedBox::isValidPublicKey($deliveryPublicKey)) {
             throw new InvalidArgumentException('La llave pública de entrega debe ser una llave X25519 en base64 (32 bytes).');
         }
 
-        $allowed = array_map(fn (PermissionName $permission) => $permission->value, PermissionName::forApiClients());
+        $forClients = array_map(fn (PermissionName $permission) => $permission->value, PermissionName::forApiClients());
+        $allowed = [...$forClients, PermissionName::clientsManage()->value];
         $unknown = array_diff($abilities, $allowed);
 
         if ($unknown !== []) {
             throw new InvalidArgumentException('Abilities no permitidas para un cliente: '.implode(', ', $unknown).'. Válidas: '.implode(', ', $allowed).'.');
         }
 
-        // Una credencial solo de lectura (p. ej. el catálogo de la plataforma) no puede emitir ni retirar.
-        $abilities = $abilities === [] ? $allowed : array_values(array_unique($abilities));
+        // Una credencial solo de lectura (p. ej. el catálogo de la plataforma) no puede emitir ni retirar;
+        // clients.manage (dar de alta afiliados) nunca se otorga por defecto.
+        $abilities = $abilities === [] ? $forClients : array_values(array_unique($abilities));
 
         $signingSecret = Str::random(64);
         $notificationSecret = Str::random(64);
 
-        return DB::transaction(function () use ($tenant, $name, $allowedIps, $deliveryPublicKey, $notificationUrl, $signingSecret, $notificationSecret, $abilities) {
+        return DB::transaction(function () use ($tenant, $name, $allowedIps, $deliveryPublicKey, $notificationUrl, $signingSecret, $notificationSecret, $abilities, $issuedBy) {
             $client = ApiClient::create([
                 'tenant_id' => $tenant->getKey(),
                 'name' => $name,
@@ -63,13 +66,14 @@ class IssueApiClientCredentials
                 now()->addDays(config('gateway.api_clients.token_ttl_days')),
             );
 
-            AuditLog::record('api_client.issued', subject: $client, context: ['tenant' => $tenant->getKey(), 'abilities' => $abilities], ip: request()?->ip() ?? 'cli');
+            AuditLog::record('api_client.issued', $issuedBy, $client, context: ['tenant' => $tenant->getKey(), 'abilities' => $abilities], ip: $issuedBy ? null : 'cli');
 
             return [
                 'client' => $client,
                 'token' => $token->plainTextToken,
                 'signing_secret' => $signingSecret,
                 'notification_secret' => $notificationSecret,
+                'expires_at' => $token->accessToken->expires_at?->toIso8601String(),
             ];
         });
     }
