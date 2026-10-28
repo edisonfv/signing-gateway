@@ -3130,6 +3130,15 @@
                     "period": {
                         "type": "string"
                     },
+                    "password": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Contrase\u00f1a del certificado elegida por el titular (solo HEADLESS). Opcional y no recomendada:\nsi se omite, el proveedor genera una aleatoria de 16 caracteres que nadie conoce antes de la\nemisi\u00f3n. Pol\u00edtica del proveedor: al menos 8 caracteres, una may\u00fascula, una min\u00fascula y un n\u00famero.",
+                        "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)\\S{8,}$",
+                        "maxLength": 64
+                    },
                     "applicant": {
                         "type": "object",
                         "properties": {

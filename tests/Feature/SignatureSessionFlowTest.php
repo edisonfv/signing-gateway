@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\RequestStatus;
 use App\Jobs\CreateProviderSession;
 use App\Jobs\ValidateCivilRegistry;
 use App\Models\ClientNotification;
@@ -160,6 +161,53 @@ class SignatureSessionFlowTest extends TestCase
             'application_type' => 'NATURAL_PERSON_RUC',
             'applicant' => ['person_ruc' => '1710034065001'],
         ]), ['Idempotency-Key' => 'op-3'])->assertAccepted();
+    }
+
+    public function test_chosen_password_is_sent_to_the_provider_and_then_erased(): void
+    {
+        $this->fakeFirmaSegura();
+
+        $id = $this->signedJson('POST', '/api/v1/signature-sessions', $this->sessionPayload(['password' => 'Clave2026x']), ['Idempotency-Key' => 'op-1'])
+            ->assertAccepted()
+            ->assertJsonMissingPath('data.password')
+            ->json('data.id');
+
+        Http::assertSent(fn (Request $request) => $request->url() === self::FS_BASE.'/signature/api/request'
+            && $request['password'] === 'Clave2026x');
+        $this->assertNull(DB::table('signature_requests')->where('id', $id)->value('applicant_password'));
+    }
+
+    public function test_chosen_password_waits_encrypted_and_is_erased_when_the_request_closes(): void
+    {
+        $this->fakeFirmaSegura();
+        Bus::fake();
+
+        $id = $this->signedJson('POST', '/api/v1/signature-sessions', $this->sessionPayload(['password' => 'Clave2026x']), ['Idempotency-Key' => 'op-1'])
+            ->assertAccepted()
+            ->json('data.id');
+
+        $stored = DB::table('signature_requests')->where('id', $id)->value('applicant_password');
+        $this->assertNotNull($stored);
+        $this->assertStringNotContainsString('Clave2026x', $stored);
+
+        SignatureRequest::find($id)->transitionTo(RequestStatus::failed(), 'test');
+
+        $this->assertNull(DB::table('signature_requests')->where('id', $id)->value('applicant_password'));
+    }
+
+    public function test_weak_or_misplaced_password_is_rejected(): void
+    {
+        $this->fakeFirmaSegura();
+
+        foreach (['corta1A', 'sinmayuscula1', 'SINMINUSCULA1', 'SinNumeros', 'Con espacio1'] as $index => $password) {
+            $this->signedJson('POST', '/api/v1/signature-sessions', $this->sessionPayload(['password' => $password]), ['Idempotency-Key' => "op-{$index}"])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('password');
+        }
+
+        $this->signedJson('POST', '/api/v1/signature-sessions', $this->sessionPayload(['product' => 'REGULAR', 'password' => 'Clave2026x']), ['Idempotency-Key' => 'op-regular'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('password');
     }
 
     public function test_sandbox_accepts_provider_test_identifications_without_check_digit(): void

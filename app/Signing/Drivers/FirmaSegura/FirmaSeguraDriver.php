@@ -79,7 +79,7 @@ class FirmaSeguraDriver implements DrivesApiFlow, RegistersRegularRequests, Sign
     }
 
     /**
-     * POST /signature/api/request. No se envía contraseña: el proveedor genera una de 16 caracteres.
+     * POST /signature/api/request. Si el titular no eligió contraseña, el proveedor genera una de 16 caracteres.
      */
     public function createSession(SignatureRequest $request): SessionData
     {
@@ -98,6 +98,7 @@ class FirmaSeguraDriver implements DrivesApiFlow, RegistersRegularRequests, Sign
             'city' => $applicant['city'],
             'period' => $request->period->value,
             'termsAndConditionsId' => $request->termsAcceptance->provider_terms_id,
+            'password' => $request->applicant_password,
         ], fn ($value) => $value !== null);
 
         $response = $this->ensureSuccessful($this->http()->post('/signature/api/request', $payload));

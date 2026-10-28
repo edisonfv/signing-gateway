@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Casts\VaultEncrypted;
 use App\Enums\ApplicationType;
 use App\Enums\CertificatePeriod;
 use App\Enums\ProductType;
 use App\Enums\RequestStatus;
 use App\Enums\SessionStep;
 use App\Exceptions\InvalidStatusTransition;
+use App\Security\KeyRing;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -23,10 +25,10 @@ use Illuminate\Support\Facades\DB;
 #[Fillable([
     'tenant_id', 'api_client_id', 'provider_account_id', 'idempotency_key', 'product',
     'application_type', 'period', 'status', 'current_step', 'provider_session_id', 'provider_request_id',
-    'provider_status', 'provider_stage', 'identification_hash', 'applicant', 'last_error',
+    'provider_status', 'provider_stage', 'identification_hash', 'applicant', 'applicant_password', 'last_error',
     'remaining_liveness_attempts', 'issued_at', 'delivered_at', 'closed_at',
 ])]
-#[Hidden(['applicant', 'identification_hash', 'last_error'])]
+#[Hidden(['applicant', 'applicant_password', 'identification_hash', 'last_error'])]
 class SignatureRequest extends Model
 {
     use HasUuids;
@@ -40,6 +42,7 @@ class SignatureRequest extends Model
             'status' => RequestStatus::class,
             'current_step' => SessionStep::class.':nullable',
             'applicant' => 'encrypted:array',
+            'applicant_password' => VaultEncrypted::class.':'.KeyRing::VAULT_PASSWORD,
             'last_error' => 'encrypted:array',
             'remaining_liveness_attempts' => 'integer',
             'issued_at' => 'datetime',
@@ -56,6 +59,7 @@ class SignatureRequest extends Model
 
     /**
      * Cambia el estado validando la máquina de estados y deja la transición registrada.
+     * Al cerrarse, borra la contraseña elegida por el titular si aún no se envió.
      *
      * @param  array<string, mixed>  $context
      */
@@ -70,6 +74,10 @@ class SignatureRequest extends Model
 
             $this->status = $next;
             $this->closed_at = $next->isTerminal() ? now() : null;
+
+            if ($next->isTerminal()) {
+                $this->applicant_password = null;
+            }
             $this->save();
 
             $this->transitions()->create([
