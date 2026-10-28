@@ -39,7 +39,7 @@ class CreateSignatureSession
     ) {}
 
     /**
-     * @param  array{product: string, application_type: string, period: string, applicant: array<string, string|null>, company?: array<string, string>, documents?: array<string, string>, terms: array<string, string|null>}  $data
+     * @param  array{product: string, application_type: string, period: string, password?: string|null, applicant: array<string, string|null>, company?: array<string, string>, documents?: array<string, string>, terms: array<string, string|null>}  $data
      * @return array{request: SignatureRequest, created: bool}
      */
     public function __invoke(ApiClient $client, string $idempotencyKey, array $data): array
@@ -82,6 +82,7 @@ class CreateSignatureSession
                     'province' => $city->province->name,
                     'company' => $data['company'] ?? null,
                 ],
+                'applicant_password' => $data['password'] ?? null,
             ]);
 
             foreach ($data['documents'] ?? [] as $type => $base64) {
