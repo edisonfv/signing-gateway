@@ -204,6 +204,7 @@ Cachear estos catálogos en el SaaS (cambian muy poco).
   "product": "HEADLESS",
   "application_type": "NATURAL_PERSON",
   "period": "ONE_YEAR",
+  "password": "Opcional, no recomendado (ver abajo)",
   "applicant": {
     "identification_number": "1710034065",
     "finger_code": "E4333V2422",
@@ -247,12 +248,25 @@ Reglas por producto:
 | `application_type` | `NATURAL_PERSON`, `NATURAL_PERSON_RUC` | además `LEGAL_REPRESENTATIVE` |
 | `applicant.person_ruc` | solo si `NATURAL_PERSON_RUC` (cédula + `001`) | igual |
 | `applicant.birth_date` | no se envía | **obligatorio** (`Y-m-d`). Menores de 18 → rechazo |
+| `password` | opcional (ver abajo) | prohibido |
 | `company` | prohibido | solo y obligatorio si `LEGAL_REPRESENTATIVE` |
 | `documents` | prohibido | obligatorio según `required_documents`; `authorization_video` si tiene 65 años o más |
 
 - Celular: formato exacto `+5939XXXXXXXX`. Cédula: 10 dígitos (en producción se valida el dígito verificador).
 - Documentos: base64 **sin** prefijo `data:…;base64,`. Imágenes JPG/PNG ≤ 5 MB, PDF ≤ 5 MB, video MP4 ≤ 20 MB.
   El gateway inspecciona el contenido real; la extensión no importa.
+- **Contraseña del certificado (`password`, solo HEADLESS).** Es **opcional**. Si no se envía, FirmaSegura
+  genera una aleatoria de 16 caracteres, que llega con el p12 en la entrega sellada (sección 9). **Es la
+  opción recomendada:** nadie la elige ni la conoce antes de la emisión.
+  Si el titular prefiere elegirla, el SaaS puede enviarla con estas condiciones:
+  - **Política:** de 8 a 64 caracteres, sin espacios, con al menos una mayúscula, una minúscula y un número.
+    Si no la cumple, la respuesta es `422` en `password`.
+  - **Riesgo que hay que explicarle al titular:** una contraseña elegida suele ser más corta y predecible,
+    y se reutiliza en otros servicios. Quien obtenga el archivo .p12 y la adivine **puede firmar en su nombre**.
+    Además, la contraseña pasa por el SaaS y por el gateway antes de la emisión.
+  - **Custodia:** tratarla como secreto (no guardarla, no registrarla en logs, `#[\SensitiveParameter]`).
+    El gateway la guarda cifrada con la llave de contraseñas de la bóveda solo hasta registrarla en el
+    proveedor, y la borra al registrarla o al cerrarse la solicitud. Nunca aparece en las respuestas.
 - Respuesta: `202` (creada) o `200` (ya existía con ese `Idempotency-Key`), con el recurso de la sección 8.
   Errores de validación: `422` con `errors` por campo (mostrarlos en el formulario).
 

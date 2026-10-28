@@ -644,6 +644,7 @@ FirmaSegura **no ofrece frontend** en este flujo: el aliado conduce cada paso po
 Notas de la documentación:
 - La solicitud admite `NATURAL_PERSON` y `NATURAL_PERSON_RUC` (con `personRuc` de 13 dígitos terminado en `001`). Menciona `LEGAL_REPRESENTATIVE` en los errores, pero sus campos **no están en el esquema**.
 - `password` es opcional: si no se envía, FirmaSegura genera una de 16 caracteres. **Decisión recomendada: no enviarla**; así nadie la elige ni la ve antes de la emisión.
+  **Actualización 2026-10-27:** el SaaS puede enviar una contraseña elegida por el titular (`password` en `POST /v1/signature-sessions`, solo HEADLESS), advirtiéndole del riesgo. El gateway valida la política del proveedor (8+ caracteres, mayúscula, minúscula y número, sin espacios; máx. 64). La guarda en `signature_requests.applicant_password`, cifrada con `VAULT_PASSWORD_KEY`, solo hasta que `CreateProviderSession` la envía, y la borra al registrar la sesión o al cerrarse la solicitud (`transitionTo` a un estado terminal).
 - Las páginas están marcadas como `developing` y tienen inconsistencias: el celular aparece como `+5939`+8 dígitos y como `+593`+9 dígitos. Hay que confirmarlas con FirmaSegura.
 - Entrega: el p12 llega al gateway → **se entrega sellado al SaaS** (decisión §7.3).
 
