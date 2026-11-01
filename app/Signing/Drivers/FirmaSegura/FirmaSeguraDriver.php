@@ -99,6 +99,7 @@ class FirmaSeguraDriver implements DrivesApiFlow, RegistersRegularRequests, Sign
             'period' => $request->period->value,
             'termsAndConditionsId' => $request->termsAcceptance->provider_terms_id,
             'password' => $request->applicant_password,
+            'callbackUrl' => $request->providerAccount->webhookUrl(),
         ], fn ($value) => $value !== null);
 
         $response = $this->ensureSuccessful($this->http()->post('/signature/api/request', $payload));

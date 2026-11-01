@@ -56,5 +56,8 @@ class AppServiceProvider extends ServiceProvider
                 ? Limit::perMinute(120)->by($client->getKey())
                 : Limit::perMinute(10)->by($request->ip());
         });
+
+        // Webhooks del proveedor: solo avisan; un tope por IP frena el ruido.
+        RateLimiter::for('webhooks', fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
     }
 }

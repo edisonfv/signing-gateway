@@ -352,7 +352,7 @@ Recurso devuelto por todos los endpoints de solicitudes:
 - `GET /v1/signature-sessions` lista las solicitudes del tenant (`filter[status]=…`, `sort=-created_at`, paginado).
 - `POST /v1/signature-sessions/{id}/refresh` consulta al proveedor **bajo demanda**. Usar solo cuando el
   usuario lo pide: comparte con la reconciliación automática un cupo de 900 consultas por hora (`429` si se agota).
-- El gateway reconcilia solo cada 10 minutos. **No hacer polling en bucle:** usar las notificaciones.
+- El gateway se entera de los cambios por el webhook de FirmaSegura (Flujo por API) y, como respaldo, reconcilia cada 5 minutos. **No hacer polling en bucle:** usar las notificaciones.
 - `POST /v1/signature-sessions/{id}/cancel`: solo HEADLESS y antes de emitir. REGULAR no se puede cancelar.
 
 ---
