@@ -26,6 +26,8 @@ class CreateProviderSession implements ShouldBeEncrypted, ShouldQueue
 {
     use HandlesProviderSession, Queueable;
 
+    public const WEAK_PASSWORD_MESSAGE = 'FirmaSegura no aceptó la contraseña elegida. Inicia una nueva solicitud con otra contraseña (solo letras y números) o deja que el sistema la cree.';
+
     public function __construct(public SignatureRequest $signatureRequest) {}
 
     public function handle(): void
@@ -35,6 +37,11 @@ class CreateProviderSession implements ShouldBeEncrypted, ShouldQueue
         } catch (ProviderRequestException $exception) {
             if ($exception->isRetryable()) {
                 throw $exception;
+            }
+
+            // FirmaSegura dice "puede volver a intentarlo", pero la solicitud queda cerrada.
+            if ($this->signatureRequest->applicant_password !== null && str_contains(mb_strtolower($exception->getMessage()), 'contraseña')) {
+                $exception = $exception->withMessage(self::WEAK_PASSWORD_MESSAGE);
             }
 
             $this->reject($exception, SessionStep::request());

@@ -36,6 +36,12 @@ class ProviderRequestException extends RuntimeException
     /**
      * Fallos técnicos o transitorios: vale la pena reintentar.
      */
+    /** El mismo error con un mensaje para el titular (el del proveedor puede inducir a error). */
+    public function withMessage(string $message): self
+    {
+        return new self($this->httpStatus, $message, $this->sessionStatus, $this->remainingAttempts);
+    }
+
     public function isRetryable(): bool
     {
         return $this->httpStatus >= 500 || $this->httpStatus === 429;
