@@ -199,7 +199,7 @@ class SignatureSessionFlowTest extends TestCase
     {
         $this->fakeFirmaSegura();
 
-        foreach (['corta1A', 'sinmayuscula1', 'SINMINUSCULA1', 'SinNumeros', 'Con espacio1'] as $index => $password) {
+        foreach (['corta1A', 'sinmayuscula1', 'SINMINUSCULA1', 'SinNumeros', 'Con espacio1', 'Clave2026**', 'Contraseña2026'] as $index => $password) {
             $this->signedJson('POST', '/api/v1/signature-sessions', $this->sessionPayload(['password' => $password]), ['Idempotency-Key' => "op-{$index}"])
                 ->assertUnprocessable()
                 ->assertJsonValidationErrors('password');

@@ -57,8 +57,10 @@ class StoreSignatureSessionRequest extends FormRequest
              * Contraseña del certificado elegida por el titular (solo HEADLESS). Opcional y no recomendada:
              * si se omite, el proveedor genera una aleatoria de 16 caracteres que nadie conoce antes de la
              * emisión. Política del proveedor: al menos 8 caracteres, una mayúscula, una minúscula y un número.
+             * Solo letras sin tilde y números: FirmaSegura rechazó "Abcd2009**" (WEAK_PASSWORD) aunque su
+             * documentación no prohíbe símbolos.
              */
-            'password' => ['nullable', Rule::prohibitedIf($isRegular), 'string', 'max:64', 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)\S{8,}$/'],
+            'password' => ['nullable', Rule::prohibitedIf($isRegular), 'string', 'max:64', 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/'],
 
             'applicant' => ['required', 'array:identification_number,finger_code,email,cellphone,address,city_id,person_ruc,birth_date'],
             'applicant.identification_number' => ['required', 'string', new EcuadorianIdentification],
@@ -129,7 +131,7 @@ class StoreSignatureSessionRequest extends FormRequest
     {
         return [
             'applicant.cellphone.regex' => 'El celular debe tener el formato +5939XXXXXXXX.',
-            'password.regex' => 'La contraseña debe tener al menos 8 caracteres, sin espacios, con una mayúscula, una minúscula y un número.',
+            'password.regex' => 'La contraseña debe tener al menos 8 caracteres, solo letras sin tilde y números, con una mayúscula, una minúscula y un número.',
             'password.prohibited' => 'La contraseña solo puede elegirse en el Flujo por API (HEADLESS).',
             'company.ruc.regex' => 'El RUC de la empresa debe tener 13 dígitos y terminar en 001.',
             'application_type.in' => 'El tipo de solicitante no está disponible para el producto elegido.',
