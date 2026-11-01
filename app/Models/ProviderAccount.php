@@ -20,6 +20,24 @@ class ProviderAccount extends Model
 {
     use HasUuids;
 
+    /**
+     * Dónde el proveedor avisa los cambios de una sesión (callbackUrl), o null si el gateway
+     * no tiene URL pública. El token impide que cualquiera golpee la ruta con cuentas al azar.
+     */
+    public function webhookUrl(): ?string
+    {
+        $base = config('gateway.webhooks.url');
+
+        return filled($base)
+            ? rtrim((string) $base, '/')."/webhooks/{$this->provider->value}/{$this->getKey()}/{$this->webhookToken()}"
+            : null;
+    }
+
+    public function webhookToken(): string
+    {
+        return substr(hash_hmac('sha256', "webhook:{$this->getKey()}", (string) config('app.key')), 0, 40);
+    }
+
     protected function casts(): array
     {
         return [

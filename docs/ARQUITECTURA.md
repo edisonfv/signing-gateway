@@ -488,7 +488,7 @@ sequenceDiagram
 | No permitir menores de edad | Edad < 18 ⇒ 422. La edad se calcula con Carbon (`birth_date->age`) | Gateway |
 | Texto guía para selfie | `GET /v1/guides/selfie` | Gateway + SaaS |
 | Texto guía para video | `GET /v1/guides/video` | Gateway + SaaS |
-| Consulta de estado cada 10 min o bajo demanda | Scheduler `everyTenMinutes()` + `POST /v1/signature-requests/{uuid}/refresh` | Gateway |
+| Consulta de estado cada 10 min o bajo demanda | Scheduler `everyFiveMinutes()` + webhook del Flujo por API + `POST /v1/signature-requests/{uuid}/refresh` | Gateway |
 | Máx. 1000 consultas de estado por hora | Limitador **global por cuenta de proveedor** (900/h, con margen). Ver §14.4 | Gateway |
 
 > La API de registro del flujo Regular **no recibe fecha de nacimiento**. Para aplicar las reglas de menor de edad y de mayor de 65, el gateway exige `applicant.birth_date`. **Pendiente:** confirmar con FirmaSegura si la validan contra el Registro Civil o si basta con la que declare el titular.
@@ -504,7 +504,7 @@ sequenceDiagram
 
 ### 14.4 Presupuesto de consultas de estado
 
-El flujo Regular **no tiene webhook**: el estado se obtiene solo con `GET /middleware/signature-request/status`. Con un límite de 1000 consultas por hora y un ciclo de 10 minutos, caben **como máximo unas 150 solicitudes en curso** consultadas en cada ciclo.
+El flujo Regular **no tiene webhook**: el estado se obtiene solo con `GET /middleware/signature-request/status`. Con un límite de 1000 consultas por hora (900 de presupuesto) y un ciclo de 5 minutos, caben **como máximo unas 75 solicitudes recientes en curso** consultadas en cada ciclo; con más, la prioridad decide cuáles esperan al siguiente.
 
 - `RateLimiter` global con la clave `provider-status:{account}` (900/h). Los jobs usan el middleware `RateLimited`, y las consultas bajo demanda descuentan del mismo presupuesto.
 - **Prioridad:** primero las solicitudes recientes y las que el usuario pidió refrescar. Las que llevan más de 24 h en validación manual pasan a cada 30–60 min.
@@ -788,9 +788,10 @@ Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `Transf
 
 ### 16.7.1 Reconciliación de estados (implementada 2026-10-23)
 
-- `gateway:reconcile-sessions` corre **cada 10 minutos** (scheduler, `onOneServer`) y encola `ReconcileSignatureSession` para las solicitudes abiertas con sesión en el proveedor.
+- `gateway:reconcile-sessions` corre **cada 5 minutos** (scheduler, `onOneServer`; antes 10) y encola `ReconcileSignatureSession` para las solicitudes abiertas con sesión en el proveedor.
 - **Presupuesto:** `TrackingBudget` limita a `GATEWAY_PROVIDER_STATUS_HOURLY` (900 por defecto, FirmaSegura permite 1000) consultas de estado por hora y cuenta. Lo comparten la reconciliación y la consulta bajo demanda `POST /v1/signature-sessions/{id}/refresh` (429 si se agota).
-- **Prioridad:** primero las nunca reconciliadas, luego las de consulta más antigua. Recientes (< 24 h) cada 10 min, antiguas cada 60 min. Se omiten las que cambiaron hace < 2 min.
+- **Prioridad:** primero las nunca reconciliadas, luego las de consulta más antigua. Recientes (< 24 h) cada 5 min, antiguas cada 60 min. Se omiten las que cambiaron hace < 2 min.
+- **Webhook (2026-11-01):** si `GATEWAY_WEBHOOK_URL` está definida, `createSession` envía `callbackUrl` = `{GATEWAY_WEBHOOK_URL}/webhooks/firmasegura/{cuenta}/{token}` (el token es un HMAC del id de la cuenta con `APP_KEY`). FirmaSegura **no firma** sus eventos CloudEvents, así que `FirmaSeguraWebhookController` no cree su contenido: con el `subject` (sessionId) encola `ReconcileSignatureSession` con origen `webhook`, que consulta el tracking. Responde `202` aunque la sesión no exista, ignora eventos repetidos por `id` (24 h) y limita 300/min por IP. En producción nginx expone solo `/webhooks/*` hacia internet. Los errores que el titular corrige (OTP, contraseña débil) no generan webhook: los cubre la reconciliación.
 - **Correcciones:** `REJECTED`/`EXPIRED`/`CANCELLED` del proveedor cierran la solicitud; `RETRYABLE`/`ERROR` pasan a `FAILED_RETRYABLE` si el gateway no lo registró. Una sesión `COMPLETED` sin p12 en la bóveda se reporta como incidente (`certificate.issued_not_stored`), sin corrección automática.
 
 ### 16.7.2 Firmas Regulares y elección de flujo por condiciones comerciales (2026-10-23)

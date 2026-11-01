@@ -15,11 +15,12 @@ Schedule::command('model:prune', ['--model' => [CertificateVaultEntry::class, Si
     ->onOneServer()
     ->withoutOverlapping(10);
 
-// Reconciliación con el tracking del proveedor (checklist: consulta de estado cada 10 minutos).
+// Reconciliación con el tracking del proveedor cada 5 minutos: respaldo de los webhooks,
+// que pueden no llegar (o no configurarse, como en local).
 Schedule::command('gateway:reconcile-sessions')
-    ->everyTenMinutes()
+    ->everyFiveMinutes()
     ->onOneServer()
-    ->withoutOverlapping(10);
+    ->withoutOverlapping(5);
 
 // Elimina tokens Sanctum vencidos hace más de 24 h.
 Schedule::command('sanctum:prune-expired --hours=24')->daily()->onOneServer();
