@@ -95,7 +95,7 @@ class SignatureSessionFlowTest extends TestCase
         $this->assertNull(DB::table('certificate_vault_entries')->value('certificate'));
         $this->assertSame('DELIVERED', SignatureRequest::find($id)->status->value);
         $this->assertEqualsCanonicalizing(
-            ['session.submitted', 'session.awaiting_liveness', 'session.liveness_ready', 'session.liveness_passed', 'certificate.ready'],
+            ['session.submitted', 'session.awaiting_liveness', 'session.liveness_ready', 'session.liveness_passed', 'certificate.issued', 'certificate.ready'],
             ClientNotification::pluck('event')->all(),
         );
     }

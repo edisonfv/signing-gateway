@@ -11,6 +11,7 @@ use App\Enums\SessionStep;
 use App\Enums\SignatureFlow;
 use App\Exceptions\InvalidStatusTransition;
 use App\Security\KeyRing;
+use App\Signing\Ledger\IssuanceLedger;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -62,7 +63,8 @@ class SignatureRequest extends Model
 
     /**
      * Cambia el estado validando la máquina de estados y deja la transición registrada.
-     * Al cerrarse, borra la contraseña elegida por el titular si aún no se envió.
+     * Al cerrarse, borra la contraseña elegida por el titular si aún no se envió. Al emitirse, la
+     * registra en el registro de emisiones en la misma transacción.
      *
      * @param  array<string, mixed>  $context
      */
@@ -89,6 +91,10 @@ class SignatureRequest extends Model
                 'source' => $source,
                 'context' => $context ?: null,
             ]);
+
+            if ($next->meansIssued()) {
+                app(IssuanceLedger::class)->record($this, $source);
+            }
         });
     }
 
@@ -138,6 +144,14 @@ class SignatureRequest extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(SignatureDocument::class);
+    }
+
+    /**
+     * @return HasOne<IssuanceLedgerEntry, $this>
+     */
+    public function issuanceLedgerEntry(): HasOne
+    {
+        return $this->hasOne(IssuanceLedgerEntry::class);
     }
 
     /**

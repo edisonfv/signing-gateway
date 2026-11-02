@@ -67,6 +67,16 @@ final class RequestStatus extends Enum
         return in_array($next->value, self::TRANSITIONS[$this->value] ?? [], true);
     }
 
+    /**
+     * El proveedor ya emitió el certificado (lo cobra): ISSUED, CERTIFICATE_STORED o DELIVERED.
+     */
+    public function meansIssued(): bool
+    {
+        // Valores literales: dentro de una instancia, self::issued() pasa por __call de spatie/enum,
+        // que lo interpreta como la comprobación isSued().
+        return in_array($this->value, ['ISSUED', 'CERTIFICATE_STORED', 'DELIVERED'], true);
+    }
+
     public function isTerminal(): bool
     {
         return ! array_key_exists($this->value, self::TRANSITIONS) || $this->equals(self::delivered());

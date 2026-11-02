@@ -87,6 +87,9 @@ class SessionReconciliationTest extends TestCase
         $this->assertSame('FAILED', $request->fresh()->status->value);
         $this->assertSame(1, AuditLog::where('action', 'certificate.issued_not_stored')->where('subject_id', $request->id)->count());
         $this->assertDatabaseHas('client_notifications', ['event' => 'session.needs_review']);
+        // El proveedor lo emitió y lo cobra: queda en el registro de emisiones una sola vez.
+        $this->assertDatabaseCount('issuance_ledger', 1);
+        $this->assertDatabaseHas('issuance_ledger', ['signature_request_id' => $request->id, 'source' => 'reconcile']);
     }
 
     public function test_reconciliation_stops_when_the_hourly_budget_is_exhausted(): void

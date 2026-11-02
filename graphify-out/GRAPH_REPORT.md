@@ -1,35 +1,35 @@
 # Graph Report - gateway-production-guide-4d0375  (2026-11-02)
 
 ## Corpus Check
-- 211 files · ~54,346 words
+- 222 files · ~57,664 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1156 nodes · 2642 edges · 105 communities (78 shown, 27 thin omitted)
-- Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 211 edges (avg confidence: 0.8)
+- 1220 nodes · 2887 edges · 105 communities (79 shown, 26 thin omitted)
+- Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 229 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `dc6cb96a`
+- Built from commit: `54f75ac6`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - .http
 - SignatureSessionFlowTest
-- Illuminate\Database\Eloquent\Relations\BelongsTo
+- Illuminate\Database\Eloquent\Concerns\HasUuids
 - composer.json
-- Environment
+- .__invoke
 - Tenant
 - SignatureRequest
 - Province
-- ProductType
+- SignatureFlow
 - HandlesProviderSession.php
-- ApiDocsServiceProvider.php
+- SessionReconciler
 - RequestStatus
 - scripts
 - DocumentType
-- SignatureFlow
+- AuditLog.php
 - MaskSensitiveData
 - firma-hmac.js
 - Controller
@@ -37,52 +37,52 @@
 - DrivesApiFlow.php
 - EvidenceType
 - CloudEventType
-- Illuminate\Database\Seeder
+- .makeSignatureRequest
 - LinkedPartnerCertificateType
 - Integración del SaaS con el Signing Gateway
-- Spatie\Enum\Laravel\Enum
-- ClientNotification
+- RegularRequestStatus
+- IssuanceLedgerEntry
 - RequestType
 - RevocationStatus
-- .__invoke
+- Illuminate\Console\Command
 - RegularValidationStatus
-- AuditLog
-- SessionStage
+- ApiClient
+- .handle
 - RegularRequestState
 - TermsType
-- TransactionalRequestStatus
-- LivenessTestController.php
-- AutoCancellationReason
+- Spatie\Enum\Laravel\Enum
+- TermsCatalog
+- Signing Gateway
 - SessionRejectionCode
 - SignatureProviderManager
-- User.php
+- UsageGuard.php
 - RegularSignatureFlowTest
-- SignatureDocument.php
-- autoload-dev
+- ApiClientAuthenticationTest
+- LogMaskingTest
 - Signing Gateway — Arquitectura
 - dev
 - ProviderAccount
-- Illuminate\Database\Eloquent\Concerns\HasUuids
+- ProviderRoutingTest
 - 13. F1 — Flujo Transaccional (FirmaSegura) en detalle
 - 15. F1 — Tercero Vinculado (FirmaSegura) en detalle
 - 16. Rediseño 2026-10-22 — F1 Flujo por API, colas, cifrado, UUID y autenticación
 - RegularValidationErrorCode
 - 14. Certificación FirmaSegura (correo de inicio de integración, 2026-10-18)
-- SessionStatus
+- RegularValidationType
+- keywords
 - 7. Flujos clave
 - liveness.jsx
 - SessionFailureCode
 - 3. Abstracción multi‑proveedor
 - SessionErrorCode
-- CertificatePeriod
+- Illuminate\Foundation\Http\FormRequest
 - KeyRing
 - ProductCatalog
-- ProviderRequestException
+- AuditLog
 - TestCase
-- RuntimeException
-- Illuminate\Database\Eloquent\Model
+- ProductType
 - TermsData
-- ProvinceCityController.php
+- Illuminate\Http\Request
 - .__invoke
 - require
 - require-dev
@@ -91,19 +91,18 @@
 - config
 - psr-4
 - LinkedPartnerStatus
-- TransactionalValidationType
 
 ## God Nodes (most connected - your core abstractions)
-1. `SignatureRequest` - 120 edges
-2. `RequestStatus` - 66 edges
-3. `Tenant` - 56 edges
-4. `SignatureFlow` - 43 edges
-5. `ProviderAccount` - 42 edges
-6. `ProductType` - 39 edges
-7. `Controller` - 39 edges
-8. `AuditLog` - 33 edges
-9. `TestCase` - 31 edges
-10. `ApiClient` - 30 edges
+1. `SignatureRequest` - 129 edges
+2. `RequestStatus` - 83 edges
+3. `Tenant` - 60 edges
+4. `ProviderAccount` - 50 edges
+5. `SignatureFlow` - 48 edges
+6. `ProductType` - 45 edges
+7. `Controller` - 43 edges
+8. `AuditLog` - 36 edges
+9. `TestCase` - 35 edges
+10. `ApplicationType` - 33 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `sessionPayload()` --calls--> `City`  [INFERRED]
@@ -114,113 +113,121 @@
   tests/Feature/ClientNotificationDeliveryTest.php → app/Models/ApiClient.php
 - `createFirmaSeguraAccount()` --references--> `ProviderAccount`  [EXTRACTED]
   tests/Concerns/FakesFirmaSegura.php → app/Models/ProviderAccount.php
-- `SessionReconciliationTest` --references--> `ProviderAccount`  [EXTRACTED]
-  tests/Feature/SessionReconciliationTest.php → app/Models/ProviderAccount.php
+- `ProviderWebhookTest` --references--> `ProviderAccount`  [EXTRACTED]
+  tests/Feature/ProviderWebhookTest.php → app/Models/ProviderAccount.php
 
 ## Import Cycles
 - None detected.
 
-## Communities (105 total, 27 thin omitted)
+## Communities (105 total, 26 thin omitted)
+
+### Community 0 - ".http"
+Cohesion: 0.21
+Nodes (3): FirmaSeguraDriver, static, Illuminate\Http\Client\PendingRequest
+
+### Community 2 - "Illuminate\Database\Eloquent\Concerns\HasUuids"
+Cohesion: 0.10
+Nodes (10): VaultEncrypted, City, SignatureRequestTransition, TenantProduct, TermsAcceptance, Illuminate\Contracts\Database\Eloquent\CastsAttributes, Illuminate\Database\Eloquent\Concerns\HasUuids, Illuminate\Database\Eloquent\Model (+2 more)
 
 ### Community 3 - "composer.json"
 Cohesion: 0.14
-Nodes (13): description, extra, laravel, keywords, dont-discover, license, minimum-stability, name (+5 more)
+Nodes (13): autoload-dev, psr-4, description, extra, laravel, dont-discover, license, minimum-stability (+5 more)
 
-### Community 4 - "Environment"
+### Community 4 - ".__invoke"
 Cohesion: 0.29
-Nodes (3): SetProviderCredentials, Environment, Provider
+Nodes (3): SetProviderCredentials, Provider, FirmaSeguraWebhookController
 
 ### Community 5 - "Tenant"
-Cohesion: 0.06
-Nodes (13): LimitExceeded, LimitExceededException, Tenant, TenantProduct, UsageGuard, DateTimeInterface, Exception, Illuminate\Database\Eloquent\Relations\HasMany (+5 more)
+Cohesion: 0.15
+Nodes (3): Tenant, issueApiCredentials(), UsageGuardTest
 
 ### Community 6 - "SignatureRequest"
-Cohesion: 0.11
-Nodes (8): SignatureRequest, SessionReconciler, trackSession(), correctRegularRequest(), registerRegularRequest(), regularRequestState(), SessionTracking, Illuminate\Database\Eloquent\Relations\HasOne
+Cohesion: 0.13
+Nodes (5): SignatureRequest, correctRegularRequest(), registerRegularRequest(), regularRequestState(), Illuminate\Database\Eloquent\Relations\HasOne
 
 ### Community 7 - "Province"
-Cohesion: 0.22
-Nodes (6): Province, CityFactory, ProvinceFactory, static, UserFactory, Illuminate\Database\Eloquent\Factories\Factory
+Cohesion: 0.06
+Nodes (19): PersonalAccessToken, Province, User, CityFactory, ProvinceFactory, static, UserFactory, DatabaseSeeder (+11 more)
 
-### Community 8 - "ProductType"
-Cohesion: 0.11
-Nodes (7): ApplicationType, ProductType, StoreSignatureSessionRequest, offering(), self, ProductOffering, FirmaSeguraOfferings
+### Community 8 - "SignatureFlow"
+Cohesion: 0.12
+Nodes (8): ApplicationType, CertificatePeriod, SignatureFlow, self, ProductOffering, FirmaSeguraOfferings, Illuminate\Validation\Validator, Spatie\Enum\Enum
 
 ### Community 9 - "HandlesProviderSession.php"
-Cohesion: 0.20
-Nodes (15): middleware(), runnableStatuses(), CreateProviderSession, DeliverClientNotification, IssueCertificate, ReconcileSignatureSession, RequestLivenessSession, SubmitFaceLiveness (+7 more)
+Cohesion: 0.07
+Nodes (25): ReconcileSignatureSessions, SessionStep, self, ProviderRequestException, LivenessTestController, advance(), middleware(), notifyClient() (+17 more)
 
-### Community 10 - "ApiDocsServiceProvider.php"
-Cohesion: 0.20
-Nodes (6): ApiDocsServiceProvider, AppServiceProvider, Dedoc\Scramble\Support\Generator\Parameter, Dedoc\Scramble\Support\Generator\Response, Illuminate\Support\ServiceProvider, Parameter
+### Community 10 - "SessionReconciler"
+Cohesion: 0.08
+Nodes (12): SignatureSessionRefreshController, ApiDocsServiceProvider, AppServiceProvider, SessionReconciler, TrackingBudget, trackSession(), SessionTracking, SessionStatus (+4 more)
 
 ### Community 12 - "RequestStatus"
 Cohesion: 0.06
-Nodes (9): self, RequestStatus, SessionStep, advance(), reject(), CertificateVaultEntry, ApiFlowJobsTest, DataProtectionTest (+1 more)
+Nodes (9): self, RequestStatus, self, ClientNotification, self, ApiFlowJobsTest, ClientNotificationDeliveryTest, ProviderWebhookTest (+1 more)
 
 ### Community 13 - "scripts"
 Cohesion: 0.13
 Nodes (15): scripts, post-autoload-dump, post-create-project-cmd, post-update-cmd, pre-package-uninstall, test, Illuminate\\Foundation\\ComposerScripts::postAutoloadDump, Illuminate\\Foundation\\ComposerScripts::prePackageUninstall (+7 more)
 
 ### Community 14 - "DocumentType"
-Cohesion: 0.06
-Nodes (18): DocumentType, TenantController, AssignRequestContext, EnsureActiveApiClient, StoreApiClientRequest, StoreLivenessResultRequest, StoreRegularCorrectionRequest, UpsertTenantRequest (+10 more)
+Cohesion: 0.08
+Nodes (12): DocumentType, self, SignatureDocument, EcuadorianIdentification, EcuadorianRuc, ValidDocument, Closure, Illuminate\Contracts\Validation\ValidationRule (+4 more)
 
-### Community 15 - "SignatureFlow"
+### Community 15 - "AuditLog.php"
 Cohesion: 0.16
-Nodes (4): SignatureFlow, LivenessResultController, LivenessSessionController, NextAction
+Nodes (3): InvalidStatusTransition, TrackingBudgetExhaustedException, LogicException
 
 ### Community 17 - "firma-hmac.js"
 Cohesion: 0.20
 Nodes (9): canonical, CryptoJS, nonce, secret, separator, signature, timestamp, token (+1 more)
 
 ### Community 18 - "Controller"
-Cohesion: 0.14
-Nodes (11): ProductController, CatalogController, CertificateController, LivenessCredentialController, PingController, ProductController, TermsController, Controller (+3 more)
+Cohesion: 0.10
+Nodes (14): ProductController, TenantController, TenantProductController, CatalogController, CertificateController, LivenessCredentialController, LivenessResultController, LivenessSessionController (+6 more)
 
 ### Community 20 - "DrivesApiFlow.php"
 Cohesion: 0.11
 Nodes (13): provider(), cancel(), createSession(), issueCertificate(), requestLivenessSession(), submitLiveness(), validateCivilRegistry(), CertificateData (+5 more)
 
-### Community 23 - "Illuminate\Database\Seeder"
-Cohesion: 0.36
-Nodes (4): DatabaseSeeder, ProvinceSeeder, Illuminate\Database\Console\Seeds\WithoutModelEvents, Illuminate\Database\Seeder
+### Community 23 - ".makeSignatureRequest"
+Cohesion: 0.10
+Nodes (4): CertificateVaultEntry, SealedBox, AdminProvisioningTest, DataProtectionTest
 
 ### Community 25 - "Integración del SaaS con el Signing Gateway"
-Cohesion: 0.07
-Nodes (25): 10. Firmas Regulares (REGULAR), 11. Notificaciones del gateway hacia el SaaS, 12. Consideraciones técnicas para el SaaS, 13. Checklist de implementación, 1. Qué es el gateway y qué NO debe hacer el SaaS, 2. Configuración por cliente (admin del SaaS), 3. Autenticación de cada petición al gateway, 4. Elegir el flujo según las condiciones comerciales (+17 more)
+Cohesion: 0.12
+Nodes (17): 10. Firmas Regulares (REGULAR), 11. Notificaciones del gateway hacia el SaaS, 12. Consideraciones técnicas para el SaaS, 13. Checklist de implementación, 1. Qué es el gateway y qué NO debe hacer el SaaS, 2. Configuración por cliente (admin del SaaS), 3. Autenticación de cada petición al gateway, 4. Elegir el flujo según las condiciones comerciales (+9 more)
 
-### Community 26 - "Spatie\Enum\Laravel\Enum"
-Cohesion: 0.24
-Nodes (3): RegularRequestStatus, RegularValidationType, Spatie\Enum\Laravel\Enum
+### Community 27 - "IssuanceLedgerEntry"
+Cohesion: 0.19
+Nodes (3): VerifyIssuanceLedger, IssuanceLedgerEntry, IssuanceLedger
 
-### Community 27 - "ClientNotification"
-Cohesion: 0.17
-Nodes (4): notifyClient(), ClientNotification, self, ClientNotificationDeliveryTest
+### Community 30 - "Illuminate\Console\Command"
+Cohesion: 0.19
+Nodes (7): IssueApiClientCredentials, BackfillIssuanceLedger, CreateApiClient, CreateTenant, PurgeApplicantData, SetTenantProducts, Illuminate\Console\Command
 
-### Community 30 - ".__invoke"
+### Community 32 - "ApiClient"
 Cohesion: 0.15
-Nodes (3): City, sessionPayload(), LocationCatalogTest
+Nodes (7): RevokeApiClient, RevokeApiClient, ClientController, ApiClient, SignatureRequestPolicy, Illuminate\Auth\Access\Response, Laravel\Sanctum\HasApiTokens
 
-### Community 32 - "AuditLog"
-Cohesion: 0.07
-Nodes (17): IssueApiClientCredentials, RevokeApiClient, CreateApiClient, CreateTenant, GenerateGatewayKeys, PurgeApplicantData, RevokeApiClient, SetTenantProducts (+9 more)
+### Community 36 - "Spatie\Enum\Laravel\Enum"
+Cohesion: 0.15
+Nodes (4): AutoCancellationReason, TransactionalRequestStatus, TransactionalValidationType, Spatie\Enum\Laravel\Enum
+
+### Community 37 - "TermsCatalog"
+Cohesion: 0.22
+Nodes (5): CreateSignatureSession, BlindIndex, TermsCatalog, UsageGuard, DateTimeInterface
+
+### Community 38 - "Signing Gateway"
+Cohesion: 0.17
+Nodes (9): Catálogos, Clientes del SaaS, Documentación y pruebas en Apidog, Grafo de conocimiento (graphify), Producción, Pruebas, Puesta en marcha (desarrollo), Signing Gateway (+1 more)
 
 ### Community 53 - "SignatureProviderManager"
-Cohesion: 0.15
-Nodes (5): CreateSignatureSession, BlindIndex, ProviderRouter, SignatureProviderManager, Illuminate\Support\Collection
+Cohesion: 0.16
+Nodes (5): offering(), static, withAccount(), SignatureProviderManager, Illuminate\Support\Manager
 
-### Community 54 - "User.php"
-Cohesion: 0.36
-Nodes (5): User, Illuminate\Database\Eloquent\Factories\HasFactory, Illuminate\Foundation\Auth\User, Illuminate\Notifications\Notifiable, Spatie\Permission\Traits\HasRoles
-
-### Community 56 - "SignatureDocument.php"
-Cohesion: 0.22
-Nodes (3): SignatureDocument, Illuminate\Database\Eloquent\Builder, Illuminate\Database\Eloquent\Prunable
-
-### Community 57 - "autoload-dev"
-Cohesion: 0.67
-Nodes (3): autoload-dev, psr-4, Tests\\
+### Community 54 - "UsageGuard.php"
+Cohesion: 0.24
+Nodes (5): LimitExceeded, LimitExceededException, Exception, Illuminate\Foundation\Events\Dispatchable, Illuminate\Queue\SerializesModels
 
 ### Community 58 - "Signing Gateway — Arquitectura"
 Cohesion: 0.17
@@ -231,12 +238,8 @@ Cohesion: 0.67
 Nodes (3): dev, Composer\\Config::disableProcessTimeout, @php artisan dev
 
 ### Community 62 - "ProviderAccount"
-Cohesion: 0.10
-Nodes (9): ReconcileSignatureSessions, ProviderAccount, TermsCatalog, TrackingBudget, static, withAccount(), static, createFirmaSeguraAccount() (+1 more)
-
-### Community 63 - "Illuminate\Database\Eloquent\Concerns\HasUuids"
-Cohesion: 0.19
-Nodes (8): Permission, PersonalAccessToken, Role, RolesAndPermissionsSeeder, Illuminate\Database\Eloquent\Concerns\HasUuids, Laravel\Sanctum\PersonalAccessToken, Spatie\Permission\Models\Permission, Spatie\Permission\Models\Role
+Cohesion: 0.12
+Nodes (6): ProviderAccount, createFirmaSeguraAccount(), fakeFirmaSegura(), testP12Base64(), IssuanceLedgerTest, TenantProductsTest
 
 ### Community 64 - "13. F1 — Flujo Transaccional (FirmaSegura) en detalle"
 Cohesion: 0.22
@@ -254,9 +257,9 @@ Nodes (11): 16.1 El Flujo por API de FirmaSegura, 16.2 Diseño asíncrono (colas
 Cohesion: 0.29
 Nodes (7): 14.1 Lo que pide FirmaSegura, 14.2 Checklist → dónde se cumple, 14.3 Reglas condicionales (flujo Regular, `POST /collector/request`), 14.4 Presupuesto de consultas de estado, 14.5 Datos de prueba en el proyecto, 14.6 Impacto en las fases, 14. Certificación FirmaSegura (correo de inicio de integración, 2026-10-18)
 
-### Community 70 - "SessionStatus"
-Cohesion: 0.22
-Nodes (3): self, SessionStatus, Illuminate\Http\Client\Response
+### Community 71 - "keywords"
+Cohesion: 0.67
+Nodes (3): keywords, framework, laravel
 
 ### Community 75 - "7. Flujos clave"
 Cohesion: 0.40
@@ -266,41 +269,37 @@ Nodes (5): 7.1 Alta de solicitud (SaaS → gateway → proveedor), 7.2 Webhook c
 Cohesion: 0.50
 Nodes (4): 3.1 Productos internos (independientes del proveedor), 3.2 Contratos por capacidad, 3.3 Resolución de drivers, 3. Abstracción multi‑proveedor
 
-### Community 87 - "CertificatePeriod"
-Cohesion: 0.14
-Nodes (4): CertificatePeriod, UpdateTenantProductsRequest, Illuminate\Support\Manager, Illuminate\Validation\Validator
+### Community 87 - "Illuminate\Foundation\Http\FormRequest"
+Cohesion: 0.12
+Nodes (6): RegularCorrectionController, StoreApiClientRequest, StoreLivenessResultRequest, StoreRegularCorrectionRequest, UpdateTenantProductsRequest, Illuminate\Foundation\Http\FormRequest
 
 ### Community 88 - "KeyRing"
-Cohesion: 0.36
-Nodes (3): KeyRing, Encrypter, Illuminate\Encryption\Encrypter
+Cohesion: 0.23
+Nodes (4): GenerateGatewayKeys, KeyRing, Encrypter, Illuminate\Encryption\Encrypter
 
-### Community 90 - "ProviderRequestException"
-Cohesion: 0.15
-Nodes (6): ProviderRequestException, RegularCorrectionController, SignatureSessionCancellationController, SignatureSessionController, SignatureSessionRefreshController, SignatureSessionResource
+### Community 90 - "AuditLog"
+Cohesion: 0.17
+Nodes (4): SignatureSessionCancellationController, AuditLog, self, Illuminate\Database\Eloquent\Relations\MorphTo
 
 ### Community 91 - "TestCase"
-Cohesion: 0.06
-Nodes (14): VerifyRequestSignature, RequestSignature, Illuminate\Foundation\Testing\RefreshDatabase, Illuminate\Foundation\Testing\TestCase, Illuminate\Testing\TestResponse, fakeFirmaSegura(), testP12Base64(), signedGet() (+6 more)
+Cohesion: 0.17
+Nodes (5): Illuminate\Foundation\Testing\RefreshDatabase, Illuminate\Foundation\Testing\TestCase, RuntimeException, DevToolsExposureTest, TestCase
 
-### Community 92 - "RuntimeException"
-Cohesion: 0.25
-Nodes (3): NoProviderAvailableException, TrackingBudgetExhaustedException, RuntimeException
-
-### Community 93 - "Illuminate\Database\Eloquent\Model"
-Cohesion: 0.25
-Nodes (4): VaultEncrypted, SignatureRequestTransition, Illuminate\Contracts\Database\Eloquent\CastsAttributes, Illuminate\Database\Eloquent\Model
+### Community 92 - "ProductType"
+Cohesion: 0.23
+Nodes (5): Environment, ProductType, NoProviderAvailableException, ProviderRouter, Illuminate\Support\Collection
 
 ### Community 94 - "TermsData"
-Cohesion: 0.13
-Nodes (6): InvalidStatusTransition, self, currentTerms(), self, TermsData, LogicException
+Cohesion: 0.18
+Nodes (3): currentTerms(), self, TermsData
 
-### Community 95 - "ProvinceCityController.php"
-Cohesion: 0.22
-Nodes (6): ProvinceCityController, ProvinceController, CityResource, ProvinceResource, Illuminate\Http\Resources\Json\AnonymousResourceCollection, Illuminate\Http\Resources\Json\JsonResource
+### Community 95 - "Illuminate\Http\Request"
+Cohesion: 0.06
+Nodes (21): IssuanceController, ProvinceCityController, ProvinceController, SignatureSessionController, AssignRequestContext, EnsureActiveApiClient, VerifyRequestSignature, StoreSignatureSessionRequest (+13 more)
 
 ### Community 96 - ".__invoke"
-Cohesion: 0.15
-Nodes (3): PermissionName, RoleName, SealedBox
+Cohesion: 0.12
+Nodes (7): PermissionName, RoleName, Permission, Role, RolesAndPermissionsSeeder, Spatie\Permission\Models\Permission, Spatie\Permission\Models\Role
 
 ### Community 98 - "require"
 Cohesion: 0.22
@@ -323,24 +322,24 @@ Cohesion: 0.40
 Nodes (5): autoload, psr-4, App\\, Database\\Factories\\, Database\\Seeders\\
 
 ## Knowledge Gaps
-- **133 isolated node(s):** `$schema`, `name`, `type`, `description`, `laravel` (+128 more)
+- **134 isolated node(s):** `$schema`, `name`, `type`, `description`, `laravel` (+129 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **27 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **26 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `SignatureRequest` connect `SignatureRequest` to `.http`, `SignatureSessionFlowTest`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `Tenant`, `HandlesProviderSession.php`, `RequestStatus`, `DocumentType`, `SignatureFlow`, `Controller`, `DrivesApiFlow.php`, `ClientNotification`, `.__invoke`, `AuditLog`, `LivenessTestController.php`, `SignatureProviderManager`, `RegularSignatureFlowTest`, `ProviderAccount`, `Illuminate\Database\Eloquent\Concerns\HasUuids`, `CertificatePeriod`, `ProviderRequestException`, `TestCase`, `Illuminate\Database\Eloquent\Model`, `TermsData`?**
-  _High betweenness centrality (0.145) - this node is a cross-community bridge._
-- **Why does `Tenant` connect `Tenant` to `.__invoke`, `AuditLog`, `SignatureSessionFlowTest`, `ProductType`, `ClientNotification`, `RequestStatus`, `DocumentType`, `Controller`, `SignatureProviderManager`, `ProductCatalog`, `TestCase`, `Illuminate\Database\Eloquent\Model`, `ProviderAccount`, `Illuminate\Database\Eloquent\Concerns\HasUuids`?**
-  _High betweenness centrality (0.041) - this node is a cross-community bridge._
-- **Why does `RequestStatus` connect `RequestStatus` to `AuditLog`, `SignatureSessionFlowTest`, `ProviderRequestException`, `LivenessTestController.php`, `SignatureRequest`, `Tenant`, `HandlesProviderSession.php`, `SignatureFlow`, `Controller`, `.__invoke`, `TermsData`, `Spatie\Enum\Laravel\Enum`, `TestCase`, `ProviderAccount`?**
-  _High betweenness centrality (0.040) - this node is a cross-community bridge._
-- **Are the 14 inferred relationships involving `SignatureRequest` (e.g. with `.__invoke()` and `.handle()`) actually correct?**
-  _`SignatureRequest` has 14 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 32 inferred relationships involving `RequestStatus` (e.g. with `.__invoke()` and `.handle()`) actually correct?**
-  _`RequestStatus` has 32 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `SignatureRequest` connect `SignatureRequest` to `.http`, `SignatureSessionFlowTest`, `Illuminate\Database\Eloquent\Concerns\HasUuids`, `.__invoke`, `Tenant`, `Province`, `SignatureFlow`, `HandlesProviderSession.php`, `SessionReconciler`, `RequestStatus`, `DocumentType`, `AuditLog.php`, `Controller`, `DrivesApiFlow.php`, `.makeSignatureRequest`, `IssuanceLedgerEntry`, `Illuminate\Console\Command`, `ApiClient`, `TermsCatalog`, `SignatureProviderManager`, `RegularSignatureFlowTest`, `ProviderAccount`, `Illuminate\Foundation\Http\FormRequest`, `AuditLog`, `TestCase`, `Illuminate\Http\Request`?**
+  _High betweenness centrality (0.142) - this node is a cross-community bridge._
+- **Why does `RequestStatus` connect `RequestStatus` to `.handle`, `Illuminate\Database\Eloquent\Concerns\HasUuids`, `SignatureSessionFlowTest`, `Spatie\Enum\Laravel\Enum`, `Tenant`, `SignatureRequest`, `SignatureFlow`, `HandlesProviderSession.php`, `SessionReconciler`, `AuditLog.php`, `Controller`, `.makeSignatureRequest`, `Illuminate\Foundation\Http\FormRequest`, `ProviderAccount`, `AuditLog`, `TestCase`, `Illuminate\Console\Command`, `Illuminate\Http\Request`?**
+  _High betweenness centrality (0.047) - this node is a cross-community bridge._
+- **Why does `Tenant` connect `Tenant` to `.__invoke`, `SignatureSessionFlowTest`, `Illuminate\Database\Eloquent\Concerns\HasUuids`, `TermsCatalog`, `Province`, `SignatureFlow`, `RequestStatus`, `Controller`, `UsageGuard.php`, `.makeSignatureRequest`, `ProductCatalog`, `TestCase`, `ProductType`, `Illuminate\Console\Command`?**
+  _High betweenness centrality (0.035) - this node is a cross-community bridge._
+- **Are the 16 inferred relationships involving `SignatureRequest` (e.g. with `.__invoke()` and `.handle()`) actually correct?**
+  _`SignatureRequest` has 16 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 33 inferred relationships involving `RequestStatus` (e.g. with `.__invoke()` and `.handle()`) actually correct?**
+  _`RequestStatus` has 33 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 15 inferred relationships involving `Tenant` (e.g. with `.handle()` and `.handle()`) actually correct?**
   _`Tenant` has 15 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `$schema`, `name`, `type` to the rest of the system?**
-  _133 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Are the 4 inferred relationships involving `ProviderAccount` (e.g. with `.handle()` and `.makeSignatureRequest()`) actually correct?**
+  _`ProviderAccount` has 4 INFERRED edges - model-reasoned connections that need verification._

@@ -14,6 +14,7 @@ use App\Signing\Data\SessionTracking;
 use App\Signing\Drivers\FirmaSegura\Enums\RegularRequestStatus;
 use App\Signing\Drivers\FirmaSegura\Enums\RevocationStatus;
 use App\Signing\Drivers\FirmaSegura\Enums\SessionStatus;
+use App\Signing\Ledger\IssuanceLedger;
 use App\Signing\SignatureProviderManager;
 use Illuminate\Support\Facades\DB;
 
@@ -30,6 +31,7 @@ class SessionReconciler
     public function __construct(
         private SignatureProviderManager $providers,
         private TrackingBudget $budget,
+        private IssuanceLedger $ledger,
     ) {}
 
     /**
@@ -93,6 +95,9 @@ class SessionReconciler
         }
 
         if ($this->isIssuedButNotStored($request, $tracking)) {
+            // El proveedor lo emitió (y lo cobra) aunque el gateway no tenga el p12.
+            $this->ledger->record($request, $source);
+
             $alreadyReported = AuditLog::query()
                 ->where('action', 'certificate.issued_not_stored')
                 ->where('subject_id', $request->getKey())

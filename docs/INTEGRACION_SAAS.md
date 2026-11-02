@@ -50,6 +50,23 @@ el SaaS da de alta y renueva afiliados sin el operador:
 | `PUT /v1/admin/tenants/{external_id}/products` | Reemplaza los productos del afiliado: `[{product, periods?, preferred_provider_account_id?}]`. Lo que no se envía queda desactivado. |
 | `POST /v1/admin/tenants/{external_id}/clients` | Emite su credencial con `delivery_public_key` y `notification_url`; devuelve token y secretos **una sola vez** y `token_expires_at`. |
 | `DELETE /v1/admin/clients/{client}` | Revoca una credencial (al renovar: primero se guarda la nueva). |
+| `GET /v1/admin/issuances` | Registro de emisiones: un certificado emitido por fila, en orden de `sequence` (filtros `after_sequence`, `tenant`, `product`, `provider_account_id`, `issued_from`, `issued_to`). |
+| `GET /v1/admin/issuances/summary` | Cantidades por afiliado, cuenta de proveedor, producto y vigencia, con los mismos filtros. |
+
+### Registro de emisiones (para facturar y conciliar)
+
+El gateway registra cada certificado que emite el proveedor, lo que el proveedor cobra: solicitud,
+afiliado, credencial, cuenta del proveedor, producto, vigencia, referencia del proveedor, número de serie
+y fecha. Sin precios ni datos personales; los precios de costo y de venta viven en la plataforma.
+
+- **Sincronizar:** guardar el último `sequence` recibido y pedir `filter[after_sequence]=<ese valor>`.
+  El correlativo no tiene huecos: si falta un número, algo está mal. La notificación `certificate.issued`
+  avisa en el momento; la consulta es la fuente de verdad si una notificación se pierde.
+- **Cuadrar con el proveedor:** `summary` con `filter[issued_from]`/`filter[issued_to]` del mes da las
+  cantidades por cuenta y vigencia que deben coincidir con su factura.
+- **Integridad:** el registro solo admite inserciones (un trigger de la base rechaza cambios y borrados)
+  y cada fila sella con su `hash` el de la anterior. `php artisan gateway:ledger:verify` lo comprueba
+  todos los días.
 
 Las credenciales emitidas así son de cliente normal: nunca reciben `clients.manage`. Cada uso queda
 en la auditoría con la credencial de alta como actor.
@@ -482,6 +499,7 @@ public function __invoke(Request $request)
 | `session.liveness_ready` | Credenciales de prueba de vida listas para retirar |
 | `session.liveness_passed` | Biometría OK; se está emitiendo |
 | `session.liveness_failed` | Biometría no coincidió; puede reintentar |
+| `certificate.issued` | El proveedor emitió el certificado (cualquier producto): quedó en el registro de emisiones con su `sequence`. Una sola vez por solicitud |
 | `certificate.ready` | p12 listo para retirar (HEADLESS) |
 | `session.rejected` | Rechazo definitivo (Registro Civil, intentos agotados, datos) |
 | `session.failed` | Fallo de emisión: requiere revisión manual (soporte) |

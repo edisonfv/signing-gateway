@@ -2,6 +2,7 @@
 
 use App\Enums\PermissionName;
 use App\Http\Controllers\Api\V1\Admin\ClientController as AdminClientController;
+use App\Http\Controllers\Api\V1\Admin\IssuanceController as AdminIssuanceController;
 use App\Http\Controllers\Api\V1\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Api\V1\Admin\TenantController as AdminTenantController;
 use App\Http\Controllers\Api\V1\Admin\TenantProductController as AdminTenantProductController;
@@ -35,6 +36,8 @@ Route::prefix('v1')
         // Alta de afiliados desde el backoffice del SaaS: solo la credencial de alta de la plataforma.
         Route::middleware('abilities:'.PermissionName::clientsManage()->value)->prefix('admin')->name('admin.')->group(function () {
             Route::get('products', [AdminProductController::class, 'index'])->name('products.index');
+            Route::get('issuances', [AdminIssuanceController::class, 'index'])->name('issuances.index');
+            Route::get('issuances/summary', [AdminIssuanceController::class, 'summary'])->name('issuances.summary');
             Route::put('tenants/{externalId}', [AdminTenantController::class, 'update'])->where('externalId', '[A-Za-z0-9_-]{1,64}')->name('tenants.update');
             Route::get('tenants/{externalId}/products', [AdminTenantProductController::class, 'show'])->where('externalId', '[A-Za-z0-9_-]{1,64}')->name('tenants.products.show');
             Route::put('tenants/{externalId}/products', [AdminTenantProductController::class, 'update'])->where('externalId', '[A-Za-z0-9_-]{1,64}')->name('tenants.products.update');
