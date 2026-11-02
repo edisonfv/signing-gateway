@@ -31,9 +31,15 @@ Emparejar otra vez (otro servidor, rotación o credencial perdida) repite estos 
 se tocan, sus credenciales siguen igual.
 
 - Quitar de la pantalla los campos de token y secreto de catálogo y de alta (ya no se escriben a mano).
-- Renovación: en `gateway:renew-credentials`, si la de servicio vence en menos de
-  `gateway.renew_days_before` días, emitir una nueva, guardarla, probarla y revocar la anterior
-  (el mismo patrón que `GatewayProvisioning::connect`).
+- Renovación en `gateway:renew-credentials` (diario), con el mismo patrón que `GatewayProvisioning::connect`
+  (emitir → guardar → probar con `GET /v1/ping` → revocar la anterior con `DELETE /v1/admin/clients/{client}`),
+  cuando falten menos de `gateway.renew_days_before` días para su `token_expires_at`:
+  - **credencial de alta:** `POST /v1/admin/provisioning-credential` (con la de alta vigente). Si se deja
+    vencer, ya no se puede renovar: hay que volver a emparejar con un código.
+  - **credencial de servicio:** `POST /v1/admin/platform-credential`.
+
+  Si la renovación falla, avisar al staff cada día (como hoy con los afiliados). `php artisan gateway:doctor`
+  también avisa en el gateway cuando a la credencial de alta le quedan menos de 30 días.
 
 ## 2. Catálogo con la credencial de servicio
 

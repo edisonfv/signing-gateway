@@ -32,6 +32,23 @@ class GatewayDoctorTest extends TestCase
             ->assertSuccessful();
     }
 
+    public function test_warns_when_the_provisioning_credential_expires_within_30_days(): void
+    {
+        $this->createFirmaSeguraAccount();
+        $platform = app(IssueApiClientCredentials::class)(null, 'Plataforma: alta', abilities: ['clients.manage']);
+        $platform['client']->tokens()->update(['expires_at' => now()->addDays(10)]);
+
+        $this->artisan('gateway:doctor', ['--offline' => true])
+            ->expectsOutputToContain('la plataforma debe renovarla (POST /v1/admin/provisioning-credential)')
+            ->assertSuccessful();
+
+        $platform['client']->tokens()->update(['expires_at' => now()->subDay()]);
+
+        $this->artisan('gateway:doctor', ['--offline' => true])
+            ->expectsOutputToContain('sin emparejar o con la credencial de alta vencida')
+            ->assertSuccessful();
+    }
+
     public function test_detects_data_encrypted_with_other_keys(): void
     {
         $this->createFirmaSeguraAccount();

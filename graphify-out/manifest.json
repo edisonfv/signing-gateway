@@ -570,8 +570,8 @@
     "semantic_hash": "1a03818ea91deb4f3989c6c994e5867c"
   },
   "routes/api.php": {
-    "mtime": 1793640348.2355828,
-    "ast_hash": "5fde0cf9ef1fce142b81c7c3d46f1b9a",
+    "mtime": 1793640962.8449297,
+    "ast_hash": "bd3e602d72d13616c2fd9b367a7d2e92",
     "semantic_hash": ""
   },
   "routes/console.php": {
@@ -640,8 +640,8 @@
     "semantic_hash": ""
   },
   "docs/ARQUITECTURA.md": {
-    "mtime": 1793640568.2232087,
-    "ast_hash": "f8b4c508d16a0ecb94a99ede43155894",
+    "mtime": 1793641041.5631545,
+    "ast_hash": "0b2c6c17edc8ab60c44e506be252f293",
     "semantic_hash": ""
   },
   "app/Actions/CreateSignatureSession.php": {
@@ -985,8 +985,8 @@
     "semantic_hash": ""
   },
   "docs/INTEGRACION_SAAS.md": {
-    "mtime": 1793640567.7013369,
-    "ast_hash": "71cc93651e28347d5ba88bd9511acc2d",
+    "mtime": 1793641041.0628881,
+    "ast_hash": "5b7076942b4f479a5c7e76b0824c7ae9",
     "semantic_hash": ""
   },
   "app/Console/Commands/PurgeApplicantData.php": {
@@ -1125,8 +1125,8 @@
     "semantic_hash": ""
   },
   "app/Http/Controllers/Api/V1/Admin/PlatformCredentialController.php": {
-    "mtime": 1793640286.5271125,
-    "ast_hash": "78eb6e6ea620a95b134d109e0f19d056",
+    "mtime": 1793640962.8156834,
+    "ast_hash": "7af8808aa0294bda73f28e8f4f54c9fa",
     "semantic_hash": ""
   },
   "app/Http/Controllers/Api/V1/Admin/TenantStatusController.php": {
@@ -1195,8 +1195,8 @@
     "semantic_hash": ""
   },
   "docs/INSTRUCCIONES_PLATAFORMA.md": {
-    "mtime": 1793640567.7296379,
-    "ast_hash": "9d2ced1089b3c5126ccfdfd57660c54d",
+    "mtime": 1793641041.0919564,
+    "ast_hash": "ba5f71b7f7ac646f4cba1fcbef8bee56",
     "semantic_hash": ""
   },
   "app/Actions/PairPlatform.php": {
@@ -1205,8 +1205,8 @@
     "semantic_hash": ""
   },
   "app/Console/Commands/GatewayDoctor.php": {
-    "mtime": 1793640520.9188516,
-    "ast_hash": "474c0a537f15795f0942bb16d594a5ef",
+    "mtime": 1793640995.247835,
+    "ast_hash": "d1b10be65016a07ddbd6ebbbe4d7c243",
     "semantic_hash": ""
   },
   "app/Console/Commands/InstallGateway.php": {
@@ -1240,13 +1240,13 @@
     "semantic_hash": ""
   },
   "tests/Feature/GatewayDoctorTest.php": {
-    "mtime": 1793640500.420399,
-    "ast_hash": "56155ec71472b3d68cfae13c0eb5dec5",
+    "mtime": 1793641009.859308,
+    "ast_hash": "e5803386d1dfcaff5814ec43ab38f887",
     "semantic_hash": ""
   },
   "tests/Feature/PlatformPairingTest.php": {
-    "mtime": 1793640459.4850059,
-    "ast_hash": "4a40c6990e2a63a0e1f02189442de93a",
+    "mtime": 1793641009.8332386,
+    "ast_hash": "e848e537389a762777c3e6088d06bff8",
     "semantic_hash": ""
   }
 }

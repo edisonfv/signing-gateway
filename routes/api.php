@@ -48,6 +48,7 @@ Route::prefix('v1')
         Route::middleware('abilities:'.PermissionName::clientsManage()->value)->prefix('admin')->name('admin.')->group(function () {
             Route::get('products', [AdminProductController::class, 'index'])->name('products.index');
             Route::post('platform-credential', [AdminPlatformCredentialController::class, 'store'])->name('platform-credential.store');
+            Route::post('provisioning-credential', [AdminPlatformCredentialController::class, 'renew'])->name('provisioning-credential.renew');
             Route::put('tenants/{externalId}', [AdminTenantController::class, 'update'])->where('externalId', '[A-Za-z0-9_-]{1,64}')->name('tenants.update');
             Route::get('tenants/{externalId}/products', [AdminTenantProductController::class, 'show'])->where('externalId', '[A-Za-z0-9_-]{1,64}')->name('tenants.products.show');
             Route::put('tenants/{externalId}/products', [AdminTenantProductController::class, 'update'])->where('externalId', '[A-Za-z0-9_-]{1,64}')->name('tenants.products.update');

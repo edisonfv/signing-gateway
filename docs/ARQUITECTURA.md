@@ -867,3 +867,6 @@ Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `Transf
 - **`gateway:doctor`**: llaves (incluido que descifren los datos existentes, para detectar una mudanza
   con llaves equivocadas), migraciones, catálogos, proveedor (responde desde este servidor),
   emparejamiento, variables de producción, freno de emisión y registro de emisiones.
+- **Renovación de la credencial de alta.** `POST /v1/admin/provisioning-credential` emite una nueva (mismas
+  IPs) sin volver a emparejar; la plataforma la guarda, la prueba y revoca la anterior. `gateway:doctor`
+  avisa cuando faltan menos de 30 días; si se deja vencer, solo queda volver a emparejar.

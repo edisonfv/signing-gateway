@@ -23,14 +23,32 @@ class PlatformCredentialController extends Controller
      */
     public function store(Request $request, IssueApiClientCredentials $issue): JsonResponse
     {
+        return $this->issue($request, $issue, PermissionName::platformService(), 'Plataforma: servicio');
+    }
+
+    /**
+     * Renovar la credencial de alta de la plataforma
+     *
+     * Emite una credencial de alta nueva (ability `clients.manage`) con las mismas IPs permitidas, sin
+     * volver a emparejar. La anterior sigue funcionando hasta que la plataforma guarda y prueba la nueva y
+     * la revoca con DELETE /v1/admin/clients/{client}: así nunca queda sin acceso. Devuelve el token y el
+     * secreto UNA sola vez.
+     */
+    public function renew(Request $request, IssueApiClientCredentials $issue): JsonResponse
+    {
+        return $this->issue($request, $issue, PermissionName::clientsManage(), 'Plataforma: alta');
+    }
+
+    private function issue(Request $request, IssueApiClientCredentials $issue, PermissionName $ability, string $name): JsonResponse
+    {
         /** @var ApiClient $caller */
         $caller = $request->user();
 
         $credentials = $issue(
             null,
-            'Plataforma: servicio · '.now()->format('Y-m-d'),
+            $name.' · '.now()->format('Y-m-d'),
             $caller->allowed_ips ?? [],
-            abilities: [PermissionName::platformService()->value],
+            abilities: [$ability->value],
             issuedBy: $caller,
         );
 

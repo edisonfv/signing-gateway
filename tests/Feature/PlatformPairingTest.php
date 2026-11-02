@@ -71,6 +71,33 @@ class PlatformPairingTest extends TestCase
         $this->assertNotNull($oldService['client']->fresh()->revoked_at);
     }
 
+    public function test_the_platform_renews_its_provisioning_credential_without_pairing_again(): void
+    {
+        $old = app(IssueApiClientCredentials::class)(null, 'Plataforma: alta', ['10.8.0.2'], abilities: ['clients.manage']);
+        $this->credentials = $old;
+
+        $response = $this->withServerVariables(['REMOTE_ADDR' => '10.8.0.2'])
+            ->signedJson('POST', '/api/v1/admin/provisioning-credential')
+            ->assertCreated();
+        $new = ApiClient::findOrFail($response->json('client'));
+        $this->assertTrue($new->isPlatform());
+        $this->assertSame(['10.8.0.2'], $new->allowed_ips);
+        $this->assertSame(['clients.manage'], $new->tokens()->first()->abilities);
+
+        // La anterior sigue viva hasta que la plataforma, ya con la nueva, la revoca.
+        $this->withServerVariables(['REMOTE_ADDR' => '10.8.0.2'])->signedGet('/api/v1/ping')->assertOk();
+        $this->credentials = ['client' => $new, 'token' => $response->json('token'), 'signing_secret' => $response->json('signing_secret')];
+        $this->withServerVariables(['REMOTE_ADDR' => '10.8.0.2'])->signedJson('DELETE', "/api/v1/admin/clients/{$old['client']->id}")->assertOk();
+        $this->assertNotNull($old['client']->fresh()->revoked_at);
+    }
+
+    public function test_the_service_credential_cannot_renew_the_provisioning_one_and_gets_403(): void
+    {
+        $this->credentials = app(IssueApiClientCredentials::class)(null, 'Plataforma: servicio', abilities: ['platform.service']);
+
+        $this->signedJson('POST', '/api/v1/admin/provisioning-credential')->assertForbidden();
+    }
+
     public function test_pairing_only_answers_the_platform_network(): void
     {
         config(['gateway.network.allowed_sources' => ['10.8.0.2']]);
