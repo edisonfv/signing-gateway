@@ -6,6 +6,7 @@ use App\Enums\ApplicationType;
 use App\Enums\CertificatePeriod;
 use App\Enums\ProductType;
 use App\Enums\RequestStatus;
+use App\Enums\SignatureFlow;
 use App\Events\LimitExceeded;
 use App\Exceptions\LimitExceededException;
 use App\Models\ApiClient;
@@ -103,6 +104,7 @@ class UsageGuardTest extends TestCase
             'provider_account_id' => $account->id,
             'idempotency_key' => (string) Str::uuid(),
             'product' => ProductType::headless(),
+            'flow' => SignatureFlow::livenessApi(),
             'application_type' => ApplicationType::naturalPerson(),
             'period' => CertificatePeriod::oneYear(),
             'status' => RequestStatus::draft(),

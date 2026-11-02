@@ -6,27 +6,40 @@ use App\Enums\ApplicationType;
 use App\Enums\CertificatePeriod;
 use App\Enums\DocumentType;
 use App\Enums\ProductType;
+use App\Enums\Provider;
+use App\Exceptions\NoProviderAvailableException;
+use App\Models\ProviderAccount;
 use App\Models\Tenant;
+use App\Signing\Data\ProductOffering;
+use App\Signing\Routing\ProviderRouter;
 
 /**
- * Productos implementados y sus requisitos, para que el frontend del SaaS elija el flujo
- * según las condiciones comerciales del tenant y arme el formulario correcto.
+ * Catálogo de productos armado con lo que declara cada proveedor (ProductOffering) y lo que
+ * contrató cada tenant. El gateway no define requisitos propios: los toma de la oferta.
  */
 class ProductCatalog
 {
-    public const ELDERLY_AGE = 65;
+    public function __construct(
+        private SignatureProviderManager $providers,
+        private ProviderRouter $router,
+    ) {}
 
     /**
-     * Texto que el titular de 65 años o más lee en el video de autorización (Firmas Regulares).
-     */
-    public const ELDERLY_VIDEO_TEMPLATE = 'Hoy [FECHA], Yo [NOMBRES_APELLIDOS] con CI. [CEDULA] autorizo a FIRMASEGURA emitir mi firma electrónica, sabiendo que tiene la misma validez legal que la firma manuscrita y sea enviada a mi correo electrónico [CORREO].';
-
-    /**
+     * Productos que algún proveedor integrado ofrece (tenga o no cuenta activa).
+     *
      * @return array<int, ProductType>
      */
     public function implemented(): array
     {
-        return [ProductType::headless(), ProductType::regular()];
+        $products = [];
+
+        foreach (Provider::cases() as $provider) {
+            foreach ($this->providers->driver($provider->value)->offerings() as $offering) {
+                $products[$offering->product->value] = $offering->product;
+            }
+        }
+
+        return array_values($products);
     }
 
     public function isImplemented(ProductType $product): bool
@@ -35,90 +48,96 @@ class ProductCatalog
     }
 
     /**
-     * @return array<int, ProductType>
+     * Oferta que verá el tenant: la de la cuenta que lo atiende, limitada a sus vigencias.
+     * Null si no contrató el producto o ninguna cuenta activa lo ofrece.
+     */
+    public function offeringFor(ProductType $product, Tenant $tenant, ?ProviderAccount $account = null): ?ProductOffering
+    {
+        if (! $tenant->allowsProduct($product)) {
+            return null;
+        }
+
+        try {
+            $account ??= $this->router->accountFor($product, $tenant);
+        } catch (NoProviderAvailableException) {
+            return null;
+        }
+
+        return $this->providers->forAccount($account)->offering($product)
+            ?->restrictedTo($tenant->productSetting($product)?->allowedPeriods());
+    }
+
+    /**
+     * @return array<int, ProductOffering>
      */
     public function availableFor(Tenant $tenant): array
     {
-        return array_values(array_filter($tenant->enabledProducts(), fn (ProductType $product) => $this->isImplemented($product)));
+        return array_values(array_filter(array_map(
+            fn (ProductType $product) => $this->offeringFor($product, $tenant),
+            $tenant->enabledProducts(),
+        )));
     }
 
     /**
-     * @return array<int, ApplicationType>
-     */
-    public function applicationTypes(ProductType $product): array
-    {
-        return $product->equals(ProductType::regular())
-            ? ApplicationType::cases()
-            : [ApplicationType::naturalPerson(), ApplicationType::naturalPersonRuc()];
-    }
-
-    /**
-     * @return array<int, CertificatePeriod>
-     */
-    public function periods(ProductType $product): array
-    {
-        return array_values(array_filter(CertificatePeriod::cases(), fn (CertificatePeriod $period) => ! $period->equals(CertificatePeriod::oneDay())));
-    }
-
-    /**
-     * Documentos obligatorios según producto y tipo de solicitante (sin contar el video por edad).
+     * Todo lo que el gateway puede vender hoy, con las cuentas que atienden cada producto,
+     * para que la plataforma configure a sus afiliados.
      *
-     * @return array<int, DocumentType>
+     * @return array<int, array<string, mixed>>
      */
-    public function requiredDocuments(ProductType $product, ApplicationType $applicationType): array
+    public function all(): array
     {
-        if (! $product->equals(ProductType::regular())) {
-            return [];
+        $catalog = [];
+
+        foreach ($this->implemented() as $product) {
+            $accounts = $this->router->candidates($product);
+
+            if ($accounts->isEmpty()) {
+                continue;
+            }
+
+            $catalog[] = [
+                ...$this->describe($this->providers->forAccount($accounts->first())->offering($product)),
+                'provider_accounts' => $accounts->map(fn (ProviderAccount $account) => [
+                    'id' => $account->getKey(),
+                    'provider' => $account->provider->value,
+                    'name' => $account->name,
+                    'priority' => $account->priority,
+                ])->all(),
+            ];
         }
 
-        $documents = [DocumentType::identificationFront(), DocumentType::identificationBack(), DocumentType::identificationSelfie()];
-
-        return match ($applicationType->value) {
-            ApplicationType::naturalPersonRuc()->value => [...$documents, DocumentType::companyRucPdf()],
-            ApplicationType::legalRepresentative()->value => [
-                ...$documents,
-                DocumentType::companyRucPdf(),
-                DocumentType::representativeAppointmentPdf(),
-                DocumentType::companyConstitutionPdf(),
-            ],
-            default => $documents,
-        };
+        return $catalog;
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function describe(ProductType $product): array
+    public function describe(ProductOffering $offering): array
     {
-        $isRegular = $product->equals(ProductType::regular());
-
         return [
-            'product' => $product->value,
-            'label' => $product->label,
-            'delivery_mode' => $product->deliveryMode()->value,
-            'identity_validation' => $isRegular ? 'DOCUMENTS' : 'LIVENESS',
-            'requires_liveness' => ! $isRegular,
-            'requires_birth_date' => $isRegular,
+            'product' => $offering->product->value,
+            'label' => $offering->product->label,
+            'flow' => $offering->flow->value,
+            'delivery_mode' => $offering->flow->deliveryMode()->value,
+            'identity_validation' => $offering->flow->identityValidation(),
+            'requires_liveness' => ! $offering->acceptsDocuments(),
+            'requires_birth_date' => $offering->requiresBirthDate,
+            'allows_holder_password' => $offering->allowsHolderPassword,
             'application_types' => array_map(fn (ApplicationType $type) => [
                 'value' => $type->value,
                 'label' => $type->label,
-                'required_documents' => array_map(fn (DocumentType $document) => $document->value, $this->requiredDocuments($product, $type)),
-            ], $this->applicationTypes($product)),
-            'periods' => array_map(fn (CertificatePeriod $period) => ['value' => $period->value, 'label' => $period->label], $this->periods($product)),
-            'documents' => $isRegular ? array_map(fn (DocumentType $document) => [
+                'required_documents' => array_map(fn (DocumentType $document) => $document->value, $offering->documentsFor($type)),
+            ], $offering->applicationTypes),
+            'periods' => array_map(fn (CertificatePeriod $period) => ['value' => $period->value, 'label' => $period->label], $offering->periods),
+            'documents' => $offering->acceptsDocuments() ? array_map(fn (DocumentType $document) => [
                 'type' => $document->value,
                 'label' => $document->label,
                 'mimes' => $document->allowedMimes(),
                 'max_bytes' => $document->maxBytes(),
             ], DocumentType::cases()) : [],
-            'guides' => $isRegular ? [
-                'selfie' => 'Rostro descubierto y centrado, con buena luz de frente, sin lentes oscuros, gorra ni mascarilla. Fondo claro y sin otras personas.',
-                'identification' => 'Cédula completa y legible, sin reflejos ni dedos sobre los datos, fotografiada sobre una superficie plana.',
-                'elderly_video' => [
-                    'applies_from_age' => self::ELDERLY_AGE,
-                    'instructions' => 'Grabe un video corto, de frente y con buena luz, leyendo el texto en voz alta y claro.',
-                    'template' => self::ELDERLY_VIDEO_TEMPLATE,
-                ],
+            'guides' => $offering->acceptsDocuments() ? [
+                ...$offering->guides,
+                ...($offering->elderlyVideo === null ? [] : ['elderly_video' => $offering->elderlyVideo]),
             ] : [],
         ];
     }

@@ -3,9 +3,9 @@
 use App\Http\Controllers\Dev\LivenessTestController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+/*
+| El gateway no tiene interfaz: solo la API (routes/api.php) y /up para el monitoreo.
+*/
 
 /*
 | Herramientas de desarrollo: SOLO se registran en el entorno local.

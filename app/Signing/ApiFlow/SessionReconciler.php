@@ -2,8 +2,8 @@
 
 namespace App\Signing\ApiFlow;
 
-use App\Enums\ProductType;
 use App\Enums\RequestStatus;
+use App\Enums\SignatureFlow;
 use App\Exceptions\ProviderRequestException;
 use App\Exceptions\TrackingBudgetExhaustedException;
 use App\Models\AuditLog;
@@ -14,6 +14,7 @@ use App\Signing\Data\SessionTracking;
 use App\Signing\Drivers\FirmaSegura\Enums\RegularRequestStatus;
 use App\Signing\Drivers\FirmaSegura\Enums\RevocationStatus;
 use App\Signing\Drivers\FirmaSegura\Enums\SessionStatus;
+use App\Signing\Ledger\IssuanceLedger;
 use App\Signing\SignatureProviderManager;
 use Illuminate\Support\Facades\DB;
 
@@ -30,6 +31,7 @@ class SessionReconciler
     public function __construct(
         private SignatureProviderManager $providers,
         private TrackingBudget $budget,
+        private IssuanceLedger $ledger,
     ) {}
 
     /**
@@ -43,7 +45,7 @@ class SessionReconciler
         }
 
         try {
-            if ($request->product->equals(ProductType::regular())) {
+            if ($request->flow->equals(SignatureFlow::documentReview())) {
                 $state = $this->providers->regularFlowFor($request)->regularRequestState($request);
                 DB::transaction(fn () => $this->applyRegular($request, $state, $source));
 
@@ -93,6 +95,9 @@ class SessionReconciler
         }
 
         if ($this->isIssuedButNotStored($request, $tracking)) {
+            // El proveedor lo emitió (y lo cobra) aunque el gateway no tenga el p12.
+            $this->ledger->record($request, $source);
+
             $alreadyReported = AuditLog::query()
                 ->where('action', 'certificate.issued_not_stored')
                 ->where('subject_id', $request->getKey())

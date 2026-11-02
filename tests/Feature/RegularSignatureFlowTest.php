@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\SignatureRequest;
 use App\Signing\ApiFlow\SessionReconciler;
-use Database\Seeders\ProvinceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Bus;
@@ -23,10 +22,9 @@ class RegularSignatureFlowTest extends TestCase
         parent::setUp();
 
         Storage::fake('documents');
-        $this->seed(ProvinceSeeder::class);
         $this->createFirmaSeguraAccount();
         $this->issueApiCredentials();
-        $this->tenant->update(['enabled_products' => ['HEADLESS', 'REGULAR']]);
+        $this->tenant->enableOnly(['HEADLESS', 'REGULAR']);
     }
 
     public function test_product_catalog_reflects_the_tenant_commercial_conditions(): void
@@ -39,7 +37,7 @@ class RegularSignatureFlowTest extends TestCase
             ->assertJsonPath('data.1.delivery_mode', 'HOLDER')
             ->assertJsonPath('data.1.guides.elderly_video.applies_from_age', 65);
 
-        $this->tenant->update(['enabled_products' => ['HEADLESS']]);
+        $this->tenant->enableOnly(['HEADLESS']);
 
         $this->signedGet('/api/v1/products')->assertOk()->assertJsonCount(1, 'data');
     }
@@ -47,7 +45,7 @@ class RegularSignatureFlowTest extends TestCase
     public function test_product_not_contracted_is_rejected(): void
     {
         $this->fakeFirmaSegura();
-        $this->tenant->update(['enabled_products' => ['HEADLESS']]);
+        $this->tenant->enableOnly(['HEADLESS']);
 
         $this->signedJson('POST', '/api/v1/signature-sessions', $this->regularPayload(), ['Idempotency-Key' => 'op-1'])
             ->assertUnprocessable()
@@ -163,6 +161,7 @@ class RegularSignatureFlowTest extends TestCase
 
         $this->signedGet("/api/v1/signature-sessions/{$id}")
             ->assertJsonPath('data.status', 'FAILED_RETRYABLE')
+            ->assertJsonPath('data.next_action.type', 'CORRECT_DATA')
             ->assertJsonPath('data.error.codes', ['A01']);
 
         $this->signedJson('POST', "/api/v1/signature-sessions/{$id}/corrections", [
@@ -191,7 +190,10 @@ class RegularSignatureFlowTest extends TestCase
         app(SessionReconciler::class)->reconcile(SignatureRequest::find($id));
         $this->signedGet("/api/v1/signature-sessions/{$id}")
             ->assertJsonPath('data.status', 'DELIVERED')
-            ->assertJsonPath('data.certificate_available', false);
+            ->assertJsonPath('data.certificate_available', false)
+            ->assertJsonPath('data.next_action', null);
+
+        $this->signedGet('/api/v1/signature-sessions')->assertJsonPath('data.0.id', $id);
 
         $this->signedGet("/api/v1/signature-sessions/{$id}/certificate")->assertConflict();
     }

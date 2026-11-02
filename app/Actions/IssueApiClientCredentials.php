@@ -33,7 +33,7 @@ class IssueApiClientCredentials
         }
 
         $forClients = array_map(fn (PermissionName $permission) => $permission->value, PermissionName::forApiClients());
-        $allowed = [...$forClients, PermissionName::clientsManage()->value];
+        $allowed = [...$forClients, PermissionName::clientsManage()->value, PermissionName::platformService()->value];
         $unknown = array_diff($abilities, $allowed);
 
         if ($unknown !== []) {

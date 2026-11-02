@@ -30,11 +30,12 @@ Navegador del titular ──► Backend del SaaS ──(token + firma HMAC)─�
 
 ## 2. Configuración por cliente (admin del SaaS)
 
-Cada cliente del SaaS (tenant) tiene **su propia credencial**, limitada a su tenant. El operador del
-gateway la emite con `php artisan gateway:client:create` y entrega los valores una sola vez.
-Con `--ability=catalogs.view` emite una credencial que solo lee el catálogo (`GET /v1/products` y
-catálogos), como la que usa la plataforma del SaaS para sincronizar ofertas; `gateway:client:revoke`
-revoca una credencial al instante.
+Cada cliente del SaaS (tenant) tiene **su propia credencial**, limitada a su tenant. Lo normal es que
+la plataforma la emita sola con su credencial de alta (abajo); el operador puede hacerlo a mano con
+`php artisan gateway:client:create`. `gateway:client:revoke` revoca una credencial al instante.
+
+**Red:** la API solo responde a las IPs de `GATEWAY_ALLOWED_SOURCES` (la IP de la plataforma en el
+túnel). En producción es obligatoria: sin ella responde `403` a todo.
 
 ### Alta automática desde el backoffice del SaaS
 
@@ -44,12 +45,74 @@ el SaaS da de alta y renueva afiliados sin el operador:
 
 | Petición | Qué hace |
 |---|---|
-| `PUT /v1/admin/tenants/{external_id}` | Registra o actualiza el afiliado (`name`, `products` opcional). Idempotente. |
-| `POST /v1/admin/tenants/{external_id}/clients` | Emite su credencial con `delivery_public_key` y `notification_url`; devuelve token y secretos **una sola vez** y `token_expires_at`. |
+| `GET /v1/admin/products` | Catálogo completo del gateway: cada producto con la oferta del proveedor (flujo, vigencias, documentos) y las cuentas que lo atienden (`provider_accounts`). |
+| `PUT /v1/admin/tenants/{external_id}` | Registra o actualiza el afiliado (`name`, `products` opcional como lista simple; conserva las condiciones ya configuradas). Idempotente. |
+| `GET /v1/admin/tenants/{external_id}/products` | Condiciones del afiliado (`settings`) y la oferta efectiva que verá en `GET /v1/products` (`available`). |
+| `PUT /v1/admin/tenants/{external_id}/products` | Reemplaza los productos del afiliado: `[{product, periods?, preferred_provider_account_id?}]`. Lo que no se envía queda desactivado. |
+| `POST /v1/admin/tenants/{external_id}/clients` | Emite su credencial con `delivery_public_key` y `notification_url` (HTTPS, host en `GATEWAY_NOTIFICATION_HOSTS`); devuelve token y secretos **una sola vez** y `token_expires_at`. Con `Idempotency-Key`, un reintento revoca la credencial del intento anterior (`replaced_clients`). |
+| `GET /v1/admin/tenants/{external_id}/clients` | Credenciales del afiliado (sin secretos): para detectar y revocar las que la plataforma no tiene guardadas. |
 | `DELETE /v1/admin/clients/{client}` | Revoca una credencial (al renovar: primero se guarda la nueva). |
+| `POST /v1/admin/tenants/{external_id}/suspend` | Suspensión comercial inmediata: no crea ni avanza solicitudes; las abiertas no emitidas se cancelan en el proveedor. Aún consulta y retira lo ya emitido. |
+| `POST /v1/admin/tenants/{external_id}/block` | Incidente: como suspender, y revoca todas sus credenciales; no puede hacer nada. |
+| `POST /v1/admin/tenants/{external_id}/resume` | Reactiva (tras un bloqueo hay que emitir credenciales nuevas). |
+| `POST /v1/admin/platform-credential` | Emite la **credencial de servicio** de la plataforma (ability `platform.service`), con las IPs de la de alta. |
+| `GET /v1/admin/issuances` | Registro de emisiones: un certificado emitido por fila, en orden de `sequence` (filtros `after_sequence`, `tenant`, `product`, `provider_account_id`, `issued_from`, `issued_to`). |
+| `GET /v1/admin/issuances/summary` | Cantidades por afiliado, cuenta de proveedor, producto y vigencia, con los mismos filtros. |
+
+### Credencial de servicio y reenvío de avisos del proveedor
+
+El operador configura **solo la credencial de alta**. Con ella la plataforma emite (y renueva) su
+credencial de servicio, de uso frecuente y bajo privilegio:
+
+| Petición (ability `platform.service`) | Qué hace |
+|---|---|
+| `GET /v1/platform/products` | Catálogo completo del gateway (igual a `GET /v1/admin/products`). |
+| `POST /v1/platform/provider-events/{provider}/{account}/{token}` | Reenvío de un aviso del proveedor. |
+
+**El gateway no se expone a internet.** El proveedor avisa a la ruta pública de la plataforma que
+el gateway le da como `callbackUrl` (`GATEWAY_WEBHOOK_URL`, p. ej.
+`https://app.midominio.com/provider-webhooks/{provider}/{account}/{token}`). La plataforma:
+
+1. Recibe el POST sin sesión ni CSRF, limita el tamaño (64 KB) y la frecuencia, y responde `202` al instante.
+2. **No interpreta el cuerpo** ni valida `{token}` (solo lo conoce el gateway).
+3. En un job, reenvía el **cuerpo exacto** a `POST /v1/platform/provider-events/{provider}/{account}/{token}`
+   (los mismos segmentos), firmado con la credencial de servicio. Reintenta si el gateway no responde.
+
+El gateway valida el token y, si coincide, adelanta la reconciliación de esa sesión. El aviso nunca
+cambia un estado por sí mismo; si se pierde, la reconciliación cada 5 minutos lo cubre.
+
+### Registro de emisiones (para facturar y conciliar)
+
+El gateway registra cada certificado que emite el proveedor, lo que el proveedor cobra: solicitud,
+afiliado, credencial, cuenta del proveedor, producto, vigencia, referencia del proveedor, número de serie
+y fecha. Sin precios ni datos personales; los precios de costo y de venta viven en la plataforma.
+
+- **Sincronizar:** guardar el último `sequence` recibido y pedir `filter[after_sequence]=<ese valor>`.
+  El correlativo no tiene huecos: si falta un número, algo está mal. La notificación `certificate.issued`
+  avisa en el momento; la consulta es la fuente de verdad si una notificación se pierde.
+- **Cuadrar con el proveedor:** `summary` con `filter[issued_from]`/`filter[issued_to]` del mes da las
+  cantidades por cuenta y vigencia que deben coincidir con su factura.
+- **Integridad:** el registro solo admite inserciones (un trigger de la base rechaza cambios y borrados)
+  y cada fila sella con su `hash` el de la anterior. `php artisan gateway:ledger:verify` lo comprueba
+  todos los días.
 
 Las credenciales emitidas así son de cliente normal: nunca reciben `clients.manage`. Cada uso queda
 en la auditoría con la credencial de alta como actor.
+
+Condiciones por producto del afiliado:
+
+- `periods`: vigencias que puede vender (subconjunto de las que ofrece el proveedor). Omitido o `null` = todas.
+- `preferred_provider_account_id`: cuenta de proveedor que lo atiende. Si está inactiva, el gateway usa la
+  cuenta de mayor prioridad. Omitido o `null` = por prioridad.
+- Un afiliado sin productos configurados usa `GATEWAY_DEFAULT_PRODUCTS`.
+
+```json
+PUT /v1/admin/tenants/acme/products
+{ "products": [
+  { "product": "HEADLESS", "periods": ["ONE_YEAR", "TWO_YEARS"] },
+  { "product": "REGULAR" }
+] }
+```
 
 El admin del SaaS debe permitir configurar por cliente:
 
@@ -173,11 +236,16 @@ del SaaS **solo debe ofrecer lo que viene en esta respuesta** y construir el for
 | `HEADLESS` | Flujo por API | **Prueba de vida** con cámara (sección 7) | Al SaaS, **sellado** (sección 9) |
 | `REGULAR` | Firmas Regulares | **Documentos** que revisan operadores del proveedor | El proveedor lo envía **por correo al titular** |
 
-Campos útiles de cada producto: `application_types[].value` y `required_documents`, `periods`,
-`requires_liveness`, `requires_birth_date`, `documents[]` (tipos MIME y tamaño máximo) y `guides`
-(textos guía para selfie, cédula y la plantilla del video para mayores de 65).
+Los requisitos los declara **el proveedor que atiende al tenant**, no el gateway: si mañana otro
+proveedor atiende el producto, el SaaS recibe sus requisitos aquí sin cambiar código.
 
-Si se envía un producto no contratado, el gateway responde `422` en `product`.
+Campos útiles de cada producto: `flow` (`LIVENESS_API` o `DOCUMENT_REVIEW`), `delivery_mode`,
+`application_types[].value` y `required_documents`, `periods` (solo las vigencias contratadas),
+`requires_liveness`, `requires_birth_date`, `allows_holder_password`, `documents[]` (tipos MIME y tamaño
+máximo) y `guides` (textos guía para selfie, cédula y la plantilla del video para mayores de 65).
+
+Si se envía un producto no contratado, el gateway responde `422` en `product`; una vigencia no contratada,
+`422` en `period`.
 
 ---
 
@@ -194,7 +262,8 @@ Cachear estos catálogos en el SaaS (cambian muy poco).
 
 ## 6. Crear la solicitud
 
-1. `GET /v1/terms/current` → `{id, version, content, content_sha256}`. **Mostrar `content` al titular**
+1. `GET /v1/terms/current?product=HEADLESS` (o `REGULAR`; por defecto `HEADLESS`) →
+   `{id, version, content, content_sha256}`: los términos del proveedor que atenderá ese producto. **Mostrar `content` al titular**
    y exigir que acepte (checklist de certificación). Guardar en el SaaS la evidencia de aceptación.
 2. `POST /v1/signature-sessions` con la cabecera **`Idempotency-Key`** (UUID generado por el SaaS y
    guardado con la operación; si hay timeout, reintentar con **la misma** clave devuelve la misma solicitud).
@@ -259,7 +328,9 @@ Reglas por producto:
   genera una aleatoria de 16 caracteres, que llega con el p12 en la entrega sellada (sección 9). **Es la
   opción recomendada:** nadie la elige ni la conoce antes de la emisión.
   Si el titular prefiere elegirla, el SaaS puede enviarla con estas condiciones:
-  - **Política:** de 8 a 64 caracteres, sin espacios, con al menos una mayúscula, una minúscula y un número.
+  - **Política:** de 8 a 64 caracteres, **solo letras sin tilde (A-Z, a-z) y números**, con al menos una
+    mayúscula, una minúscula y un número. FirmaSegura rechaza con `WEAK_PASSWORD` contraseñas con símbolos
+    (`Abcd2009**`) aunque su documentación no lo diga; por eso el gateway no los acepta.
     Si no la cumple, la respuesta es `422` en `password`.
   - **Riesgo que hay que explicarle al titular:** una contraseña elegida suele ser más corta y predecible,
     y se reutiliza en otros servicios. Quien obtenga el archivo .p12 y la adivine **puede firmar en su nombre**.
@@ -328,8 +399,9 @@ Recurso devuelto por todos los endpoints de solicitudes:
 
 ```json
 { "data": {
-  "id": "uuid", "product": "HEADLESS", "delivery_mode": "CLIENT_SEALED",
+  "id": "uuid", "product": "HEADLESS", "flow": "LIVENESS_API", "delivery_mode": "CLIENT_SEALED",
   "status": "AWAITING_APPLICANT", "step": "CIVIL_REGISTRY",
+  "next_action": { "type": "START_LIVENESS", "method": "POST", "path": "/v1/signature-sessions/uuid/liveness-session" },
   "application_type": "NATURAL_PERSON", "period": "ONE_YEAR",
   "provider_status": "IN_PROGRESS", "remaining_liveness_attempts": null,
   "error": { "message": "…", "provider_status": "…", "codes": ["A01"] },
@@ -349,10 +421,22 @@ Recurso devuelto por todos los endpoints de solicitudes:
 | `DELIVERED` | Entregado (HEADLESS: al SaaS; REGULAR: el titular lo descargó) | Fin |
 | `REJECTED` / `EXPIRED` / `CANCELLED` / `FAILED` / `REVOKED` | Cerrada | Mostrar `error.message`; `FAILED` requiere soporte |
 
-- `GET /v1/signature-sessions` lista las solicitudes del tenant (`filter[status]=…`, `sort=-created_at`, paginado).
+**`next_action` dice qué hacer sin conocer el proveedor.** Conviene que el SaaS se guíe por este campo
+y no por `product`/`status`: así un proveedor nuevo no obliga a cambiar la lógica.
+
+| `next_action.type` | Qué hace el SaaS |
+|---|---|
+| `START_LIVENESS` | Pedir la sesión de prueba de vida (`POST …/liveness-session`) |
+| `FACE_LIVENESS` | Retirar las credenciales (`GET …/liveness-credentials`), correr el SDK y enviar el resultado |
+| `CORRECT_DATA` | Reenviar lo indicado en `error.codes` (`POST …/corrections`) |
+| `RETRIEVE_CERTIFICATE` | Retirar el certificado sellado (`GET …/certificate`) |
+| `WAIT` | Esperar la notificación |
+| `null` | Nada más que hacer (cerrada, o entregada por el proveedor al titular) |
+
+- `GET /v1/signature-sessions` lista todas las solicitudes del tenant (`filter[status]=…`, `filter[product]=…`, `sort=-created_at`, paginado).
 - `POST /v1/signature-sessions/{id}/refresh` consulta al proveedor **bajo demanda**. Usar solo cuando el
   usuario lo pide: comparte con la reconciliación automática un cupo de 900 consultas por hora (`429` si se agota).
-- El gateway reconcilia solo cada 10 minutos. **No hacer polling en bucle:** usar las notificaciones.
+- El gateway se entera de los cambios por el webhook de FirmaSegura (Flujo por API) y, como respaldo, reconcilia cada 5 minutos. **No hacer polling en bucle:** usar las notificaciones.
 - `POST /v1/signature-sessions/{id}/cancel`: solo HEADLESS y antes de emitir. REGULAR no se puede cancelar.
 
 ---
@@ -407,7 +491,8 @@ hash('sha256', base64_decode($certificate['certificate_base64'])) === $certifica
 El gateway hace `POST` a la URL de notificaciones de la credencial:
 
 ```json
-{ "id": "uuid-de-la-notificación", "event": "certificate.ready", "occurred_at": "2026-10-23T10:20:00+00:00",
+{ "id": "uuid-de-la-notificación", "tenant": "external_id del afiliado", "client": "uuid de la credencial",
+  "event": "certificate.ready", "occurred_at": "2026-10-23T10:20:00+00:00",
   "data": { "signature_session_id": "uuid", "status": "CERTIFICATE_STORED", "step": "ISSUANCE", "remaining_liveness_attempts": null } }
 ```
 
@@ -443,8 +528,10 @@ public function __invoke(Request $request)
 | `session.liveness_ready` | Credenciales de prueba de vida listas para retirar |
 | `session.liveness_passed` | Biometría OK; se está emitiendo |
 | `session.liveness_failed` | Biometría no coincidió; puede reintentar |
+| `certificate.issued` | El proveedor emitió el certificado (cualquier producto): quedó en el registro de emisiones con su `sequence`. Una sola vez por solicitud |
 | `certificate.ready` | p12 listo para retirar (HEADLESS) |
 | `session.rejected` | Rechazo definitivo (Registro Civil, intentos agotados, datos) |
+| `session.cancelled` | El gateway la canceló: afiliado suspendido o bloqueado, credencial revocada o emisión detenida (`reason`) |
 | `session.failed` | Fallo de emisión: requiere revisión manual (soporte) |
 | `session.reconciled` | Estado actualizado por la reconciliación (REGULAR sobre todo) |
 | `session.needs_review` | El proveedor emitió pero el certificado no llegó al gateway: incidente |

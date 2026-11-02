@@ -17,7 +17,8 @@ class TenantController extends Controller
      * Registrar o actualizar un afiliado
      *
      * Idempotente por `external_id` (el id del afiliado en el SaaS): la primera vez lo crea,
-     * después actualiza su nombre y, si se envían, sus productos contratados.
+     * después actualiza su nombre y, si se envían, sus productos contratados (conserva las condiciones
+     * de cada uno; para vigencias o proveedor usar PUT /v1/admin/tenants/{external_id}/products).
      */
     public function update(UpsertTenantRequest $request, string $externalId): JsonResponse
     {
@@ -26,19 +27,20 @@ class TenantController extends Controller
         $created = ! $tenant->exists;
 
         $tenant->name = $data['name'];
+        $tenant->save();
 
         if (array_key_exists('products', $data)) {
-            $tenant->enabled_products = array_values(array_unique($data['products'])) ?: null;
+            $tenant->enableOnly($data['products']);
         }
 
-        $tenant->save();
-        AuditLog::record($created ? 'tenant.created' : 'tenant.updated', $request->user(), $tenant, context: ['products' => $tenant->enabled_products ?? 'default']);
+        AuditLog::record($created ? 'tenant.created' : 'tenant.updated', $request->user(), $tenant, context: ['products' => $data['products'] ?? 'unchanged']);
 
         return response()->json([
             'external_id' => $tenant->external_id,
             'name' => $tenant->name,
             'products' => array_map(fn (ProductType $product) => $product->value, $tenant->enabledProducts()),
             'suspended' => $tenant->isSuspended(),
+            'blocked' => $tenant->isBlocked(),
         ], $created ? 201 : 200);
     }
 }

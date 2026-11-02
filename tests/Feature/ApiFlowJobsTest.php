@@ -6,6 +6,7 @@ use App\Enums\ApplicationType;
 use App\Enums\CertificatePeriod;
 use App\Enums\ProductType;
 use App\Enums\RequestStatus;
+use App\Enums\SignatureFlow;
 use App\Exceptions\ProviderRequestException;
 use App\Jobs\CreateProviderSession;
 use App\Jobs\IssueCertificate;
@@ -49,6 +50,19 @@ class ApiFlowJobsTest extends TestCase
         $this->assertSame('REJECTED', $request->status->value);
         $this->assertSame('La ciudad proporcionada no es válida', $request->last_error['message']);
         $this->assertNotNull($request->closed_at);
+    }
+
+    public function test_a_password_the_provider_refuses_closes_with_a_clear_message(): void
+    {
+        $this->fakeFirmaSegura([self::FS_BASE.'/signature/api/request' => Http::response(['code' => 'WEAK_PASSWORD', 'message' => 'La contraseña del titular no cumple los requisitos mínimos; puede volver a intentarlo.'], 409)]);
+        $request = $this->makeRequest(RequestStatus::submitting());
+        $request->forceFill(['applicant_password' => 'Clave2026x'])->save();
+
+        (new CreateProviderSession($request))->handle();
+
+        $request->refresh();
+        $this->assertSame('REJECTED', $request->status->value);
+        $this->assertSame(CreateProviderSession::WEAK_PASSWORD_MESSAGE, $request->last_error['message']);
     }
 
     public function test_liveness_mismatch_reported_as_retryable_session_allows_a_new_attempt(): void
@@ -108,6 +122,7 @@ class ApiFlowJobsTest extends TestCase
             'provider_account_id' => $account->id,
             'idempotency_key' => 'op-1',
             'product' => ProductType::headless(),
+            'flow' => SignatureFlow::livenessApi(),
             'application_type' => ApplicationType::naturalPerson(),
             'period' => CertificatePeriod::oneYear(),
             'status' => $status,

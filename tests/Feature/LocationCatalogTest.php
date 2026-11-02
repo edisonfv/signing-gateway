@@ -32,8 +32,6 @@ class LocationCatalogTest extends TestCase
 
     public function test_provinces_are_listed_with_city_counts_and_can_be_filtered(): void
     {
-        $this->seed(ProvinceSeeder::class);
-
         $this->signedGet('/api/v1/provinces')
             ->assertOk()
             ->assertJsonCount(24, 'data')
@@ -48,7 +46,6 @@ class LocationCatalogTest extends TestCase
 
     public function test_cities_are_returned_only_for_the_requested_province(): void
     {
-        $this->seed(ProvinceSeeder::class);
         $carchi = Province::where('name', 'CARCHI')->firstOrFail();
 
         $response = $this->signedGet("/api/v1/provinces/{$carchi->id}/cities")

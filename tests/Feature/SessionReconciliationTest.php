@@ -7,6 +7,7 @@ use App\Enums\CertificatePeriod;
 use App\Enums\ProductType;
 use App\Enums\RequestStatus;
 use App\Enums\SessionStep;
+use App\Enums\SignatureFlow;
 use App\Exceptions\TrackingBudgetExhaustedException;
 use App\Jobs\ReconcileSignatureSession;
 use App\Models\AuditLog;
@@ -14,7 +15,6 @@ use App\Models\ProviderAccount;
 use App\Models\SignatureRequest;
 use App\Signing\ApiFlow\SessionReconciler;
 use App\Signing\ApiFlow\TrackingBudget;
-use Database\Seeders\ProvinceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -33,7 +33,6 @@ class SessionReconciliationTest extends TestCase
     {
         parent::setUp();
 
-        $this->seed(ProvinceSeeder::class);
         $this->account = $this->createFirmaSeguraAccount();
         $this->issueApiCredentials();
     }
@@ -88,6 +87,9 @@ class SessionReconciliationTest extends TestCase
         $this->assertSame('FAILED', $request->fresh()->status->value);
         $this->assertSame(1, AuditLog::where('action', 'certificate.issued_not_stored')->where('subject_id', $request->id)->count());
         $this->assertDatabaseHas('client_notifications', ['event' => 'session.needs_review']);
+        // El proveedor lo emitió y lo cobra: queda en el registro de emisiones una sola vez.
+        $this->assertDatabaseCount('issuance_ledger', 1);
+        $this->assertDatabaseHas('issuance_ledger', ['signature_request_id' => $request->id, 'source' => 'reconcile']);
     }
 
     public function test_reconciliation_stops_when_the_hourly_budget_is_exhausted(): void
@@ -182,6 +184,7 @@ class SessionReconciliationTest extends TestCase
             'provider_account_id' => $this->account->id,
             'idempotency_key' => (string) Str::uuid(),
             'product' => ProductType::headless(),
+            'flow' => SignatureFlow::livenessApi(),
             'application_type' => ApplicationType::naturalPerson(),
             'period' => CertificatePeriod::oneYear(),
             'status' => $status,

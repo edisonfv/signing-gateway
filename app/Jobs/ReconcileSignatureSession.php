@@ -15,7 +15,8 @@ use Illuminate\Queue\Attributes\UniqueFor;
 
 /**
  * Consulta el tracking del proveedor para una solicitud abierta y corrige su estado.
- * Lo encola el comando gateway:reconcile-sessions dentro del presupuesto horario.
+ * Lo encola el comando gateway:reconcile-sessions dentro del presupuesto horario, o un
+ * webhook del proveedor (`$source = 'webhook'`) para enterarse sin esperar al comando.
  */
 #[Tries(2)]
 #[Backoff(60)]
@@ -24,7 +25,7 @@ class ReconcileSignatureSession implements ShouldBeEncrypted, ShouldBeUnique, Sh
 {
     use Queueable;
 
-    public function __construct(public SignatureRequest $signatureRequest) {}
+    public function __construct(public SignatureRequest $signatureRequest, public string $source = 'reconcile') {}
 
     public function uniqueId(): string
     {
@@ -34,7 +35,7 @@ class ReconcileSignatureSession implements ShouldBeEncrypted, ShouldBeUnique, Sh
     public function handle(SessionReconciler $reconciler): void
     {
         try {
-            $reconciler->reconcile($this->signatureRequest);
+            $reconciler->reconcile($this->signatureRequest, $this->source);
         } catch (TrackingBudgetExhaustedException) {
             // El presupuesto se repone en la próxima ventana; el comando volverá a encolarla.
         }

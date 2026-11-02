@@ -51,7 +51,7 @@ final class RequestStatus extends Enum
      */
     private const TRANSITIONS = [
         'DRAFT' => ['SUBMITTING', 'CANCELLED'],
-        'SUBMITTING' => ['SUBMITTED', 'AWAITING_APPLICANT', 'REJECTED', 'FAILED'],
+        'SUBMITTING' => ['SUBMITTED', 'AWAITING_APPLICANT', 'REJECTED', 'CANCELLED', 'FAILED'],
         'SUBMITTED' => ['AWAITING_APPLICANT', 'VALIDATING', 'FAILED_RETRYABLE', 'ISSUED', 'REJECTED', 'CANCELLED', 'EXPIRED', 'FAILED'],
         'AWAITING_APPLICANT' => ['VALIDATING', 'FAILED_RETRYABLE', 'REJECTED', 'CANCELLED', 'EXPIRED', 'FAILED'],
         'VALIDATING' => ['APPROVED', 'ISSUED', 'FAILED_RETRYABLE', 'REJECTED', 'CANCELLED', 'EXPIRED', 'FAILED'],
@@ -65,6 +65,16 @@ final class RequestStatus extends Enum
     public function canTransitionTo(self $next): bool
     {
         return in_array($next->value, self::TRANSITIONS[$this->value] ?? [], true);
+    }
+
+    /**
+     * El proveedor ya emitió el certificado (lo cobra): ISSUED, CERTIFICATE_STORED o DELIVERED.
+     */
+    public function meansIssued(): bool
+    {
+        // Valores literales: dentro de una instancia, self::issued() pasa por __call de spatie/enum,
+        // que lo interpreta como la comprobación isSued().
+        return in_array($this->value, ['ISSUED', 'CERTIFICATE_STORED', 'DELIVERED'], true);
     }
 
     public function isTerminal(): bool

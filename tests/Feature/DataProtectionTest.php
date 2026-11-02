@@ -6,6 +6,7 @@ use App\Enums\ApplicationType;
 use App\Enums\CertificatePeriod;
 use App\Enums\ProductType;
 use App\Enums\RequestStatus;
+use App\Enums\SignatureFlow;
 use App\Exceptions\InvalidStatusTransition;
 use App\Models\ApiClient;
 use App\Models\AuditLog;
@@ -148,6 +149,44 @@ class DataProtectionTest extends TestCase
         $this->assertSame('jwt-secreto', ProviderAccount::first()->credentials['token']);
     }
 
+    public function test_applicant_data_is_purged_after_retention_while_the_request_keeps_its_record(): void
+    {
+        config(['gateway.retention.applicant_data_days' => 90]);
+        $expired = $this->makeSignatureRequest();
+        $expired->forceFill(['status' => RequestStatus::rejected(), 'closed_at' => now()->subDays(91), 'last_error' => ['message' => 'x']])->save();
+        $recent = $this->makeSignatureRequest();
+        $recent->forceFill(['status' => RequestStatus::rejected(), 'closed_at' => now()->subDays(10)])->save();
+        $open = $this->makeSignatureRequest();
+
+        $this->artisan('gateway:purge-applicant-data')->assertSuccessful();
+
+        $expired->refresh();
+        $this->assertNull($expired->applicant);
+        $this->assertNull($expired->last_error);
+        $this->assertNotNull($expired->applicant_purged_at);
+        $this->assertSame('REJECTED', $expired->status->value);
+        $this->assertSame(app(BlindIndex::class)->for('cedula', '1700000000'), $expired->identification_hash);
+        $this->assertNotNull($recent->fresh()->applicant);
+        $this->assertNotNull($open->fresh()->applicant);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'signature_requests.applicant_purged']);
+    }
+
+    public function test_requests_delivered_by_the_provider_to_the_holder_are_purged_after_retention(): void
+    {
+        config(['gateway.retention.applicant_data_days' => 90]);
+        $issued = $this->makeSignatureRequest();
+        $issued->forceFill([
+            'product' => ProductType::regular(),
+            'flow' => SignatureFlow::documentReview(),
+            'status' => RequestStatus::issued(),
+            'issued_at' => now()->subDays(91),
+        ])->save();
+
+        $this->artisan('gateway:purge-applicant-data')->assertSuccessful();
+
+        $this->assertNull($issued->fresh()->applicant);
+    }
+
     private function makeSignatureRequest(): SignatureRequest
     {
         $tenant = Tenant::create(['external_id' => Str::random(8), 'name' => 'T']);
@@ -170,6 +209,7 @@ class DataProtectionTest extends TestCase
             'provider_account_id' => $account->getKey(),
             'idempotency_key' => Str::uuid()->toString(),
             'product' => ProductType::headless(),
+            'flow' => SignatureFlow::livenessApi(),
             'application_type' => ApplicationType::naturalPerson(),
             'period' => CertificatePeriod::oneYear(),
             'status' => RequestStatus::draft(),

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\CreateSignatureSession;
-use App\Enums\ProductType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSignatureSessionRequest;
 use App\Http\Resources\SignatureSessionResource;
@@ -28,6 +27,7 @@ class SignatureSessionController extends Controller
      * Solicitudes del tenant de la credencial, más recientes primero.
      */
     #[QueryParameter('filter[status]', 'Estado interno, p. ej. `AWAITING_APPLICANT`. Admite varios separados por coma.', type: 'string', example: 'AWAITING_APPLICANT')]
+    #[QueryParameter('filter[product]', 'Producto, p. ej. `REGULAR`. Admite varios separados por coma.', type: 'string', example: 'HEADLESS')]
     #[QueryParameter('sort', 'Orden: `created_at` o `-created_at`.', type: 'string', default: '-created_at', example: '-created_at')]
     #[QueryParameter('page', 'Página.', type: 'integer', example: 1)]
     public function index(Request $request): AnonymousResourceCollection
@@ -35,8 +35,8 @@ class SignatureSessionController extends Controller
         /** @var ApiClient $client */
         $client = $request->user();
 
-        $requests = QueryBuilder::for(SignatureRequest::query()->whereBelongsTo($client->tenant)->where('product', ProductType::headless()->value))
-            ->allowedFilters(AllowedFilter::exact('status'))
+        $requests = QueryBuilder::for(SignatureRequest::query()->whereBelongsTo($client->tenant))
+            ->allowedFilters(AllowedFilter::exact('status'), AllowedFilter::exact('product'))
             ->allowedSorts('created_at')
             ->defaultSort('-created_at')
             ->paginate(25)

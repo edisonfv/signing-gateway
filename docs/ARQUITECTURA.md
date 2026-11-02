@@ -27,14 +27,18 @@ Hoy integra **FirmaSeguraEC**; está diseñado para añadir otros proveedores si
 ## 2. Topología
 
 ```
-                 WireGuard (solo IP Plesk)                    Salida solo a api.firmaseguraec.com
+                 WireGuard (solo IP de la plataforma)          Salida solo a api.firmaseguraec.com
 [SaaS / Plesk] ─────────────────────────────► [Gateway] ───────────────────────────────────────► [FirmaSegura]
-      ▲   API interna  :8443 (wg0)                │  ▲                                              │
-      │                                           │  │  Webhook público :443  /webhooks/{provider}/{account}
-      └──── notificaciones firmadas (outbox) ─────┘  └──────────────── solo IPs del proveedor ◄──────┘
+   ▲    ▲    API interna :8443 (wg0)              │                                                  │
+   │    └──── notificaciones firmadas ────────────┘                                                  │
+   └──────── avisos del proveedor: /provider-webhooks/... (la SaaS los reenvía por el túnel) ◄───────┘
 ```
 
-- **Dos superficies HTTP separadas**: API interna (escucha solo en la interfaz del túnel) y webhook público (nginx, una sola ruta, IP allowlist del proveedor).
+- **Una sola superficie HTTP**: la API interna, en la interfaz del túnel. El gateway **no se expone a
+  internet**: los avisos del proveedor llegan a la ruta pública de la plataforma, que los reenvía sin
+  interpretarlos a `POST /v1/platform/provider-events/...` (rediseño 2026-11-02, ver §17).
+- Defensa en profundidad: además del firewall, la aplicación rechaza orígenes fuera de
+  `GATEWAY_ALLOWED_SOURCES` y solo notifica a hosts de `GATEWAY_NOTIFICATION_HOSTS` (HTTPS, sin redirecciones).
 - El **token del proveedor existe solo en el gateway**, restringido por IP en FirmaSegura a la IP del gateway.
 - Un gateway (o configuración) por ambiente: `sandbox` → `api.dev-firmaseguraec.com`, `production` → `api.firmaseguraec.com`.
 
@@ -488,7 +492,7 @@ sequenceDiagram
 | No permitir menores de edad | Edad < 18 ⇒ 422. La edad se calcula con Carbon (`birth_date->age`) | Gateway |
 | Texto guía para selfie | `GET /v1/guides/selfie` | Gateway + SaaS |
 | Texto guía para video | `GET /v1/guides/video` | Gateway + SaaS |
-| Consulta de estado cada 10 min o bajo demanda | Scheduler `everyTenMinutes()` + `POST /v1/signature-requests/{uuid}/refresh` | Gateway |
+| Consulta de estado cada 10 min o bajo demanda | Scheduler `everyFiveMinutes()` + webhook del Flujo por API + `POST /v1/signature-requests/{uuid}/refresh` | Gateway |
 | Máx. 1000 consultas de estado por hora | Limitador **global por cuenta de proveedor** (900/h, con margen). Ver §14.4 | Gateway |
 
 > La API de registro del flujo Regular **no recibe fecha de nacimiento**. Para aplicar las reglas de menor de edad y de mayor de 65, el gateway exige `applicant.birth_date`. **Pendiente:** confirmar con FirmaSegura si la validan contra el Registro Civil o si basta con la que declare el titular.
@@ -504,7 +508,7 @@ sequenceDiagram
 
 ### 14.4 Presupuesto de consultas de estado
 
-El flujo Regular **no tiene webhook**: el estado se obtiene solo con `GET /middleware/signature-request/status`. Con un límite de 1000 consultas por hora y un ciclo de 10 minutos, caben **como máximo unas 150 solicitudes en curso** consultadas en cada ciclo.
+El flujo Regular **no tiene webhook**: el estado se obtiene solo con `GET /middleware/signature-request/status`. Con un límite de 1000 consultas por hora (900 de presupuesto) y un ciclo de 5 minutos, caben **como máximo unas 75 solicitudes recientes en curso** consultadas en cada ciclo; con más, la prioridad decide cuáles esperan al siguiente.
 
 - `RateLimiter` global con la clave `provider-status:{account}` (900/h). Los jobs usan el middleware `RateLimited`, y las consultas bajo demanda descuentan del mismo presupuesto.
 - **Prioridad:** primero las solicitudes recientes y las que el usuario pidió refrescar. Las que llevan más de 24 h en validación manual pasan a cada 30–60 min.
@@ -788,9 +792,10 @@ Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `Transf
 
 ### 16.7.1 Reconciliación de estados (implementada 2026-10-23)
 
-- `gateway:reconcile-sessions` corre **cada 10 minutos** (scheduler, `onOneServer`) y encola `ReconcileSignatureSession` para las solicitudes abiertas con sesión en el proveedor.
+- `gateway:reconcile-sessions` corre **cada 5 minutos** (scheduler, `onOneServer`; antes 10) y encola `ReconcileSignatureSession` para las solicitudes abiertas con sesión en el proveedor.
 - **Presupuesto:** `TrackingBudget` limita a `GATEWAY_PROVIDER_STATUS_HOURLY` (900 por defecto, FirmaSegura permite 1000) consultas de estado por hora y cuenta. Lo comparten la reconciliación y la consulta bajo demanda `POST /v1/signature-sessions/{id}/refresh` (429 si se agota).
-- **Prioridad:** primero las nunca reconciliadas, luego las de consulta más antigua. Recientes (< 24 h) cada 10 min, antiguas cada 60 min. Se omiten las que cambiaron hace < 2 min.
+- **Prioridad:** primero las nunca reconciliadas, luego las de consulta más antigua. Recientes (< 24 h) cada 5 min, antiguas cada 60 min. Se omiten las que cambiaron hace < 2 min.
+- **Webhook (2026-11-01):** si `GATEWAY_WEBHOOK_URL` está definida, `createSession` envía `callbackUrl` = `{GATEWAY_WEBHOOK_URL}/webhooks/firmasegura/{cuenta}/{token}` (el token es un HMAC del id de la cuenta con `APP_KEY`). FirmaSegura **no firma** sus eventos CloudEvents, así que `FirmaSeguraWebhookController` no cree su contenido: con el `subject` (sessionId) encola `ReconcileSignatureSession` con origen `webhook`, que consulta el tracking. Responde `202` aunque la sesión no exista, ignora eventos repetidos por `id` (24 h) y limita 300/min por IP. En producción nginx expone solo `/webhooks/*` hacia internet. Los errores que el titular corrige (OTP, contraseña débil) no generan webhook: los cubre la reconciliación.
 - **Correcciones:** `REJECTED`/`EXPIRED`/`CANCELLED` del proveedor cierran la solicitud; `RETRYABLE`/`ERROR` pasan a `FAILED_RETRYABLE` si el gateway no lo registró. Una sesión `COMPLETED` sin p12 en la bóveda se reporta como incidente (`certificate.issued_not_stored`), sin corrección automática.
 
 ### 16.7.2 Firmas Regulares y elección de flujo por condiciones comerciales (2026-10-23)
@@ -821,3 +826,27 @@ Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `Transf
 6. Formato definitivo del celular (`+5939XXXXXXXX`).
 7. ¿Este flujo requiere habilitación de permisos o scopes para nuestro token?
 8. ¿Hay límite de tasa en estos endpoints, además de las 1000 consultas de estado por hora?
+
+---
+
+## 17. Endurecimiento 2026-11-02 — gateway cerrado y control de afiliados
+
+- **Sin superficie pública.** La ruta `webhooks/*` se eliminó. `callbackUrl` apunta a la ruta pública de
+  reenvío de la plataforma (`GATEWAY_WEBHOOK_URL`), que pasa el cuerpo tal cual a
+  `POST /v1/platform/provider-events/{provider}/{account}/{token}` con su credencial de servicio. El token
+  del aviso es un HMAC del id de la cuenta con la llave de índices ciegos (ya no con `APP_KEY`).
+- **Red en la aplicación.** `RestrictSourceNetwork` rechaza orígenes fuera de `GATEWAY_ALLOWED_SOURCES`;
+  en producción, sin lista, rechaza todo. Las notificaciones solo van por HTTPS a hosts de
+  `GATEWAY_NOTIFICATION_HOSTS` y sin seguir redirecciones (evita SSRF desde el gateway).
+- **Credencial de servicio** (`platform.service`): catálogo completo y reenvío de avisos; la emite la
+  plataforma con su credencial de alta (`POST /v1/admin/platform-credential`).
+- **Suspender / bloquear / reactivar** un afiliado (`/v1/admin/tenants/{id}/suspend|block|resume`, o
+  `gateway:tenant:suspend`): suspender es comercial (aún retira lo ya emitido); bloquear es por incidente
+  (revoca todas sus credenciales). En ambos se cancelan en el proveedor las solicitudes abiertas no emitidas.
+- **Freno en los jobs.** `StopWhenEmissionBlocked` corre antes de cada llamada al proveedor: si el
+  afiliado está suspendido o bloqueado, la credencial revocada o la emisión detenida, cancela la
+  solicitud sin llamar al proveedor. Lo ya encolado no sigue en segundo plano.
+- **Botón de pánico.** `php artisan gateway:halt` detiene toda emisión (503 al crear, jobs cancelados);
+  `--off` la reanuda, `--status` la muestra. Es un archivo en `storage/framework`, como el modo mantenimiento.
+- **Credenciales idempotentes.** `Idempotency-Key` en la emisión revoca la credencial del intento anterior;
+  `GET /v1/admin/tenants/{id}/clients` las lista sin secretos.

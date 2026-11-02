@@ -8,7 +8,6 @@ use App\Jobs\ValidateCivilRegistry;
 use App\Models\ClientNotification;
 use App\Models\SignatureRequest;
 use App\Models\Tenant;
-use Database\Seeders\ProvinceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Bus;
@@ -28,7 +27,6 @@ class SignatureSessionFlowTest extends TestCase
     {
         parent::setUp();
 
-        $this->seed(ProvinceSeeder::class);
         $this->createFirmaSeguraAccount();
         $this->issueApiCredentials();
 
@@ -54,6 +52,8 @@ class SignatureSessionFlowTest extends TestCase
             ->assertAccepted()
             ->assertJsonPath('data.status', 'AWAITING_APPLICANT')
             ->assertJsonPath('data.step', 'CIVIL_REGISTRY')
+            ->assertJsonPath('data.flow', 'LIVENESS_API')
+            ->assertJsonPath('data.next_action.type', 'START_LIVENESS')
             ->json('data.id');
 
         Http::assertSent(fn (Request $request) => $request->url() === self::FS_BASE.'/signature/api/request'
@@ -64,7 +64,9 @@ class SignatureSessionFlowTest extends TestCase
             && ! isset($request['password'])
             && $request->hasHeader('Authorization', 'Bearer jwt-sandbox'));
 
-        $this->signedJson('POST', "/api/v1/signature-sessions/{$id}/liveness-session")->assertAccepted();
+        $this->signedJson('POST', "/api/v1/signature-sessions/{$id}/liveness-session")
+            ->assertAccepted()
+            ->assertJsonPath('data.next_action', ['type' => 'FACE_LIVENESS', 'method' => 'GET', 'path' => "/v1/signature-sessions/{$id}/liveness-credentials"]);
 
         $this->signedGet("/api/v1/signature-sessions/{$id}/liveness-credentials")
             ->assertOk()
@@ -80,7 +82,8 @@ class SignatureSessionFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.status', 'CERTIFICATE_STORED')
             ->assertJsonPath('data.provider_status', 'COMPLETED')
-            ->assertJsonPath('data.certificate_available', true);
+            ->assertJsonPath('data.certificate_available', true)
+            ->assertJsonPath('data.next_action.type', 'RETRIEVE_CERTIFICATE');
 
         $sealed = $this->signedGet("/api/v1/signature-sessions/{$id}/certificate")->assertOk()->json('data.sealed');
         $opened = json_decode(sodium_crypto_box_seal_open(base64_decode($sealed), $this->privateKeyPair), true);
@@ -92,7 +95,7 @@ class SignatureSessionFlowTest extends TestCase
         $this->assertNull(DB::table('certificate_vault_entries')->value('certificate'));
         $this->assertSame('DELIVERED', SignatureRequest::find($id)->status->value);
         $this->assertEqualsCanonicalizing(
-            ['session.submitted', 'session.awaiting_liveness', 'session.liveness_ready', 'session.liveness_passed', 'certificate.ready'],
+            ['session.submitted', 'session.awaiting_liveness', 'session.liveness_ready', 'session.liveness_passed', 'certificate.issued', 'certificate.ready'],
             ClientNotification::pluck('event')->all(),
         );
     }
@@ -199,11 +202,13 @@ class SignatureSessionFlowTest extends TestCase
     {
         $this->fakeFirmaSegura();
 
-        foreach (['corta1A', 'sinmayuscula1', 'SINMINUSCULA1', 'SinNumeros', 'Con espacio1'] as $index => $password) {
+        foreach (['corta1A', 'sinmayuscula1', 'SINMINUSCULA1', 'SinNumeros', 'Con espacio1', 'Clave2026**', 'Contraseña2026'] as $index => $password) {
             $this->signedJson('POST', '/api/v1/signature-sessions', $this->sessionPayload(['password' => $password]), ['Idempotency-Key' => "op-{$index}"])
                 ->assertUnprocessable()
                 ->assertJsonValidationErrors('password');
         }
+
+        $this->tenant->enableOnly(['HEADLESS', 'REGULAR']);
 
         $this->signedJson('POST', '/api/v1/signature-sessions', $this->sessionPayload(['product' => 'REGULAR', 'password' => 'Clave2026x']), ['Idempotency-Key' => 'op-regular'])
             ->assertUnprocessable()

@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AssignRequestContext;
 use App\Http\Middleware\EnsureActiveApiClient;
+use App\Http\Middleware\RestrictSourceNetwork;
 use App\Http\Middleware\VerifyRequestSignature;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -25,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'ability' => CheckForAnyAbility::class,
             'api.client' => EnsureActiveApiClient::class,
             'api.signature' => VerifyRequestSignature::class,
+            'api.source' => RestrictSourceNetwork::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

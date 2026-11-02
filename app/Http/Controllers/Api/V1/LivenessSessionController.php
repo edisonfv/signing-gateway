@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Enums\ProductType;
 use App\Enums\RequestStatus;
+use App\Enums\SignatureFlow;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SignatureSessionResource;
 use App\Jobs\RequestLivenessSession;
@@ -26,7 +26,7 @@ class LivenessSessionController extends Controller
     {
         Gate::authorize('update', $signatureSession);
 
-        abort_unless($signatureSession->product->equals(ProductType::headless()), 409, 'La prueba de vida solo aplica al Flujo por API.');
+        abort_unless($signatureSession->flow->equals(SignatureFlow::livenessApi()), 409, 'La prueba de vida solo aplica a solicitudes con flujo LIVENESS_API.');
 
         abort_unless(
             $signatureSession->status->equals(RequestStatus::awaitingApplicant(), RequestStatus::failedRetryable()),

@@ -33,7 +33,7 @@ class CertificateController extends Controller
         $client = $request->user();
 
         abort_unless(
-            $signatureSession->product->deliveryMode()->equals(DeliveryMode::clientSealed()),
+            $signatureSession->flow->deliveryMode()->equals(DeliveryMode::clientSealed()),
             409,
             'En este producto el proveedor entrega el certificado directamente al titular por correo.',
         );
