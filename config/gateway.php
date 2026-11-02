@@ -62,12 +62,18 @@ return [
 
     'reconciliation' => [
         // Cada cuánto se vuelve a consultar una solicitud abierta, según su antigüedad.
-        'recent_interval_minutes' => (int) env('GATEWAY_RECONCILE_RECENT_MINUTES', 10),
+        'recent_interval_minutes' => (int) env('GATEWAY_RECONCILE_RECENT_MINUTES', 5),
         'stale_interval_minutes' => (int) env('GATEWAY_RECONCILE_STALE_MINUTES', 60),
         // A partir de cuántas horas una solicitud se considera antigua.
         'stale_after_hours' => (int) env('GATEWAY_RECONCILE_STALE_AFTER_HOURS', 24),
         // No se consulta una solicitud que cambió hace menos de esto (su job puede estar corriendo).
         'quiet_seconds' => (int) env('GATEWAY_RECONCILE_QUIET_SECONDS', 120),
+    ],
+
+    'webhooks' => [
+        // URL pública del gateway que recibe los webhooks del proveedor (https://gw.midominio.com).
+        // Sin ella no se envía callbackUrl y los cambios llegan solo por la reconciliación.
+        'url' => env('GATEWAY_WEBHOOK_URL'),
     ],
 
     'retention' => [

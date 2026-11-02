@@ -283,7 +283,9 @@ Reglas por producto:
   genera una aleatoria de 16 caracteres, que llega con el p12 en la entrega sellada (sección 9). **Es la
   opción recomendada:** nadie la elige ni la conoce antes de la emisión.
   Si el titular prefiere elegirla, el SaaS puede enviarla con estas condiciones:
-  - **Política:** de 8 a 64 caracteres, sin espacios, con al menos una mayúscula, una minúscula y un número.
+  - **Política:** de 8 a 64 caracteres, **solo letras sin tilde (A-Z, a-z) y números**, con al menos una
+    mayúscula, una minúscula y un número. FirmaSegura rechaza con `WEAK_PASSWORD` contraseñas con símbolos
+    (`Abcd2009**`) aunque su documentación no lo diga; por eso el gateway no los acepta.
     Si no la cumple, la respuesta es `422` en `password`.
   - **Riesgo que hay que explicarle al titular:** una contraseña elegida suele ser más corta y predecible,
     y se reutiliza en otros servicios. Quien obtenga el archivo .p12 y la adivine **puede firmar en su nombre**.
@@ -389,7 +391,7 @@ y no por `product`/`status`: así un proveedor nuevo no obliga a cambiar la lóg
 - `GET /v1/signature-sessions` lista todas las solicitudes del tenant (`filter[status]=…`, `filter[product]=…`, `sort=-created_at`, paginado).
 - `POST /v1/signature-sessions/{id}/refresh` consulta al proveedor **bajo demanda**. Usar solo cuando el
   usuario lo pide: comparte con la reconciliación automática un cupo de 900 consultas por hora (`429` si se agota).
-- El gateway reconcilia solo cada 10 minutos. **No hacer polling en bucle:** usar las notificaciones.
+- El gateway se entera de los cambios por el webhook de FirmaSegura (Flujo por API) y, como respaldo, reconcilia cada 5 minutos. **No hacer polling en bucle:** usar las notificaciones.
 - `POST /v1/signature-sessions/{id}/cancel`: solo HEADLESS y antes de emitir. REGULAR no se puede cancelar.
 
 ---

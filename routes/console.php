@@ -15,11 +15,12 @@ Schedule::command('model:prune', ['--model' => [CertificateVaultEntry::class, Si
     ->onOneServer()
     ->withoutOverlapping(10);
 
-// Reconciliación con el tracking del proveedor (checklist: consulta de estado cada 10 minutos).
+// Reconciliación con el tracking del proveedor cada 5 minutos: respaldo de los webhooks,
+// que pueden no llegar (o no configurarse, como en local).
 Schedule::command('gateway:reconcile-sessions')
-    ->everyTenMinutes()
+    ->everyFiveMinutes()
     ->onOneServer()
-    ->withoutOverlapping(10);
+    ->withoutOverlapping(5);
 
 // Borra los datos personales del titular cumplida la retención (gateway.retention.applicant_data_days).
 Schedule::command('gateway:purge-applicant-data')->dailyAt('03:00')->onOneServer();
