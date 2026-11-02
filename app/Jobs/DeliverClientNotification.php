@@ -61,7 +61,7 @@ class DeliverClientNotification implements ShouldBeEncrypted, ShouldBeUnique, Sh
             'id' => $notification->getKey(),
             // Con una sola URL de notificaciones para toda la plataforma, identifican al afiliado
             // y la credencial (cuyo secreto de notificaciones verifica la firma).
-            'tenant' => $client->tenant->external_id,
+            'tenant' => $client->tenant?->external_id,
             'client' => $client->getKey(),
             'event' => $notification->event,
             'occurred_at' => $notification->created_at->toIso8601String(),

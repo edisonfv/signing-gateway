@@ -24,7 +24,8 @@ class PingController extends Controller
 
         return response()->json([
             'client' => $client->getKey(),
-            'tenant' => $client->tenant->external_id,
+            'tenant' => $client->tenant?->external_id,
+            'platform' => $client->isPlatform(),
             'abilities' => $client->currentAccessToken()->abilities,
             'token_expires_at' => $client->currentAccessToken()->expires_at?->toIso8601String(),
         ]);

@@ -12,7 +12,6 @@ use App\Jobs\CreateProviderSession;
 use App\Models\ApiClient;
 use App\Models\ProviderAccount;
 use App\Models\SignatureRequest;
-use App\Models\Tenant;
 use App\Signing\EmissionGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -42,8 +41,7 @@ class TenantSuspensionTest extends TestCase
         $this->account = $this->createFirmaSeguraAccount();
         $this->issueApiCredentials();
         $this->affiliate = $this->credentials;
-        $platformTenant = Tenant::create(['external_id' => 'plataforma', 'name' => 'Plataforma']);
-        $this->platform = app(IssueApiClientCredentials::class)($platformTenant, 'Plataforma: alta', abilities: ['clients.manage']);
+        $this->platform = app(IssueApiClientCredentials::class)(null, 'Plataforma: alta', abilities: ['clients.manage']);
     }
 
     protected function tearDown(): void
@@ -123,10 +121,13 @@ class TenantSuspensionTest extends TestCase
         $this->signedJson('POST', '/api/v1/signature-sessions', $this->sessionPayload(), ['Idempotency-Key' => 'op-2'])->assertAccepted();
     }
 
-    public function test_the_platform_cannot_stop_its_own_tenant_and_an_affiliate_cannot_stop_anyone(): void
+    public function test_the_platform_has_no_tenant_routes_and_an_affiliate_cannot_stop_anyone(): void
     {
         $this->credentials = $this->platform;
-        $this->signedJson('POST', '/api/v1/admin/tenants/plataforma/block')->assertStatus(409);
+        $this->signedGet('/api/v1/ping')->assertOk()->assertJsonPath('platform', true)->assertJsonPath('tenant', null);
+        $this->signedGet('/api/v1/signature-sessions')
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Una credencial de la plataforma solo usa /v1/admin y /v1/platform.');
 
         $this->credentials = $this->affiliate;
         $this->signedJson('POST', '/api/v1/admin/tenants/acme/suspend')->assertForbidden();

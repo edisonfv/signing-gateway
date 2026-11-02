@@ -6,7 +6,6 @@ use App\Actions\IssueApiClientCredentials;
 use App\Jobs\DeliverClientNotification;
 use App\Models\ApiClient;
 use App\Models\ClientNotification;
-use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\Concerns\InteractsWithSignedApi;
@@ -44,8 +43,7 @@ class NetworkHardeningTest extends TestCase
     public function test_notification_url_must_be_https_on_an_allowed_host(): void
     {
         config(['gateway.network.notification_hosts' => ['app.efirma.test']]);
-        $platform = Tenant::create(['external_id' => 'plataforma', 'name' => 'Plataforma']);
-        $this->credentials = app(IssueApiClientCredentials::class)($platform, 'Plataforma: alta', abilities: ['clients.manage']);
+        $this->credentials = app(IssueApiClientCredentials::class)(null, 'Plataforma: alta', abilities: ['clients.manage']);
         $base = ['name' => 'X', 'delivery_public_key' => base64_encode(sodium_crypto_box_publickey(sodium_crypto_box_keypair()))];
 
         $this->signedJson('POST', '/api/v1/admin/tenants/acme/clients', [...$base, 'notification_url' => 'http://app.efirma.test/hook'])

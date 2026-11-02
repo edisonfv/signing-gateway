@@ -27,7 +27,7 @@ class PlatformCredentialController extends Controller
         $caller = $request->user();
 
         $credentials = $issue(
-            $caller->tenant,
+            null,
             'Plataforma: servicio · '.now()->format('Y-m-d'),
             $caller->allowed_ips ?? [],
             abilities: [PermissionName::platformService()->value],

@@ -12,7 +12,6 @@ use App\Jobs\ReconcileSignatureSession;
 use App\Models\ApiClient;
 use App\Models\ProviderAccount;
 use App\Models\SignatureRequest;
-use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -39,8 +38,7 @@ class ProviderWebhookTest extends TestCase
         Queue::fake();
 
         // La plataforma reenvía con su credencial de servicio (ability platform.service).
-        $platform = Tenant::create(['external_id' => 'plataforma', 'name' => 'Plataforma']);
-        $this->credentials = app(IssueApiClientCredentials::class)($platform, 'Plataforma: servicio', abilities: ['platform.service']);
+        $this->credentials = app(IssueApiClientCredentials::class)(null, 'Plataforma: servicio', abilities: ['platform.service']);
     }
 
     public function test_the_callback_url_is_only_built_with_a_public_url(): void

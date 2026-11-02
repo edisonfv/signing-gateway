@@ -9,7 +9,8 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Tras auth:api: la credencial debe estar vigente, su tenant activo y la IP permitida.
+ * Tras auth:api: la credencial debe estar vigente, su tenant activo y la IP permitida. Las
+ * credenciales de la plataforma (sin tenant) solo llegan a las rutas de la plataforma.
  */
 class EnsureActiveApiClient
 {
@@ -28,8 +29,13 @@ class EnsureActiveApiClient
             abort(403, 'Credencial revocada o afiliado bloqueado.');
         }
 
+        // La plataforma no es un afiliado: nunca opera solicitudes ni catálogos de un tenant.
+        if ($client->isPlatform() && ! $request->routeIs('v1.ping', 'v1.admin.*', 'v1.platform.*')) {
+            abort(403, 'Una credencial de la plataforma solo usa /v1/admin y /v1/platform.');
+        }
+
         // Suspendido (comercial): solo puede consultar y retirar lo que ya se emitió y pagó.
-        if ($client->tenant->isSuspended() && ! ($request->isMethod('GET') && $request->routeIs(...self::ALLOWED_WHILE_SUSPENDED))) {
+        if ($client->tenant?->isSuspended() && ! ($request->isMethod('GET') && $request->routeIs(...self::ALLOWED_WHILE_SUSPENDED))) {
             abort(403, 'Afiliado suspendido: solo puede consultar sus solicitudes y retirar certificados ya emitidos.');
         }
 

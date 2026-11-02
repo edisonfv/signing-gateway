@@ -6,7 +6,6 @@ use App\Actions\IssueApiClientCredentials;
 use App\Models\ApiClient;
 use App\Models\ProviderAccount;
 use App\Models\SignatureRequest;
-use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\FakesFirmaSegura;
 use Tests\Concerns\InteractsWithSignedApi;
@@ -31,8 +30,7 @@ class TenantProductsTest extends TestCase
         $this->account = $this->createFirmaSeguraAccount();
         $this->issueApiCredentials();
         $this->affiliate = $this->credentials;
-        $platformTenant = Tenant::create(['external_id' => 'plataforma', 'name' => 'Plataforma']);
-        $this->platform = app(IssueApiClientCredentials::class)($platformTenant, 'Plataforma: alta', abilities: ['clients.manage']);
+        $this->platform = app(IssueApiClientCredentials::class)(null, 'Plataforma: alta', abilities: ['clients.manage']);
     }
 
     public function test_admin_catalog_lists_every_offered_product_with_its_provider_accounts(): void

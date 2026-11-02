@@ -14,7 +14,8 @@ use Spatie\Permission\Traits\HasRoles;
 use Symfony\Component\HttpFoundation\IpUtils;
 
 /**
- * Credencial de integración de un cliente del SaaS, limitada a su tenant (guard api).
+ * Credencial de integración (guard api): de un afiliado, limitada a su tenant, o de la plataforma
+ * (sin tenant; solo rutas /v1/admin y /v1/platform).
  *
  * El tenant se deduce siempre del token autenticado, nunca de la petición.
  */
@@ -45,9 +46,17 @@ class ApiClient extends Authenticatable
         return $this->belongsTo(Tenant::class);
     }
 
+    /**
+     * Credencial de la plataforma (alta de afiliados o servicio): no pertenece a ningún afiliado.
+     */
+    public function isPlatform(): bool
+    {
+        return $this->tenant_id === null;
+    }
+
     public function isActive(): bool
     {
-        return $this->revoked_at === null && ! $this->tenant->isBlocked();
+        return $this->revoked_at === null && ! $this->tenant?->isBlocked();
     }
 
     public function allowsIp(?string $ip): bool

@@ -24,8 +24,7 @@ class AdminProvisioningTest extends TestCase
 
         // A regular client (acme) and the platform's provisioning credential.
         $this->issueApiCredentials();
-        $platformTenant = Tenant::create(['external_id' => 'plataforma', 'name' => 'Plataforma']);
-        $this->platform = app(IssueApiClientCredentials::class)($platformTenant, 'Plataforma: alta', abilities: ['clients.manage']);
+        $this->platform = app(IssueApiClientCredentials::class)(null, 'Plataforma: alta', abilities: ['clients.manage']);
     }
 
     protected function asPlatform(): void

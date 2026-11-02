@@ -850,3 +850,20 @@ Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `Transf
   `--off` la reanuda, `--status` la muestra. Es un archivo en `storage/framework`, como el modo mantenimiento.
 - **Credenciales idempotentes.** `Idempotency-Key` en la emisión revoca la credencial del intento anterior;
   `GET /v1/admin/tenants/{id}/clients` las lista sin secretos.
+
+---
+
+## 18. Instalación y emparejamiento 2026-11-02
+
+- **La plataforma no es un tenant.** Sus credenciales (`clients.manage`, `platform.service`) tienen
+  `tenant_id` nulo y solo llegan a `/v1/admin` y `/v1/platform`; un afiliado nunca recibe esas abilities.
+  Desaparece el tenant «plataforma» (la migración mueve sus credenciales y lo borra si no tiene uso).
+- **Emparejamiento.** `gateway:pair` genera un código de 8 caracteres (sin I, L, O, 0, 1), de un solo
+  uso, que vence en 10 minutos y se guarda como hash. `POST /v1/pair` lo canjea por la credencial de
+  alta, limitada a la IP que lo canjea; solo desde `GATEWAY_ALLOWED_SOURCES`, 5 intentos por minuto, y
+  5 fallos invalidan los códigos vigentes. Emparejar revoca las credenciales anteriores de la plataforma.
+- **`gateway:install`** (idempotente): genera las llaves que falten, migra, siembra los catálogos, pide
+  el token del proveedor si falta, ejecuta `gateway:doctor` y ofrece el código de emparejamiento.
+- **`gateway:doctor`**: llaves (incluido que descifren los datos existentes, para detectar una mudanza
+  con llaves equivocadas), migraciones, catálogos, proveedor (responde desde este servidor),
+  emparejamiento, variables de producción, freno de emisión y registro de emisiones.
