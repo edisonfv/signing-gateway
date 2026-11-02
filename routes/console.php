@@ -22,6 +22,9 @@ Schedule::command('gateway:reconcile-sessions')
     ->onOneServer()
     ->withoutOverlapping(5);
 
+// Borra los datos personales del titular cumplida la retención (gateway.retention.applicant_data_days).
+Schedule::command('gateway:purge-applicant-data')->dailyAt('03:00')->onOneServer();
+
 // Elimina tokens Sanctum vencidos hace más de 24 h.
 Schedule::command('sanctum:prune-expired --hours=24')->daily()->onOneServer();
 

@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\ProductType;
 use App\Http\Controllers\Controller;
+use App\Models\ApiClient;
 use App\Signing\ApiFlow\TermsCatalog;
 use App\Signing\Routing\ProviderRouter;
 use Dedoc\Scramble\Attributes\Group;
+use Dedoc\Scramble\Attributes\QueryParameter;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 #[Group('Flujo por API', weight: 2)]
 class TermsController extends Controller
@@ -15,11 +18,19 @@ class TermsController extends Controller
     /**
      * Términos y condiciones vigentes
      *
-     * El SaaS los muestra al titular y envía `id` y `version` al crear la solicitud.
+     * Términos del proveedor que atenderá la solicitud del producto. El SaaS los muestra al titular
+     * y envía `id` y `version` al crear la solicitud con el mismo `product`.
      */
-    public function show(ProviderRouter $router, TermsCatalog $catalog): JsonResponse
+    #[QueryParameter('product', 'Producto que se va a solicitar.', type: 'string', default: 'HEADLESS', example: 'REGULAR')]
+    public function show(Request $request, ProviderRouter $router, TermsCatalog $catalog): JsonResponse
     {
-        $terms = $catalog->current($router->accountFor(ProductType::headless()));
+        $product = ProductType::tryFrom((string) $request->query('product', ProductType::headless()->value));
+
+        abort_if($product === null, 422, 'Producto desconocido.');
+
+        /** @var ApiClient $client */
+        $client = $request->user();
+        $terms = $catalog->current($router->accountFor($product, $client->tenant));
 
         return response()->json(['data' => [
             'id' => $terms->id,

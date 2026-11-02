@@ -26,7 +26,7 @@ class SetTenantProducts extends Command
             return self::FAILURE;
         }
 
-        $tenant->update(['enabled_products' => $products ?: null]);
+        $products ? $tenant->enableOnly($products) : $tenant->products()->delete();
         AuditLog::record('tenant.products_updated', subject: $tenant, context: ['products' => $products ?: 'default'], ip: 'cli');
 
         $this->components->info("{$tenant->name}: ".implode(', ', array_map(fn (ProductType $product) => $product->value, $tenant->enabledProducts())));

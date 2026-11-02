@@ -7,6 +7,7 @@ use App\Enums\CertificatePeriod;
 use App\Enums\DocumentType;
 use App\Enums\ProductType;
 use App\Enums\RequestStatus;
+use App\Enums\SignatureFlow;
 use App\Jobs\CreateProviderSession;
 use App\Jobs\SubmitRegularRequest;
 use App\Jobs\ValidateCivilRegistry;
@@ -17,15 +18,17 @@ use App\Models\SignatureRequest;
 use App\Security\BlindIndex;
 use App\Signing\ApiFlow\TermsCatalog;
 use App\Signing\Limits\UsageGuard;
+use App\Signing\ProductCatalog;
 use App\Signing\Routing\ProviderRouter;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Crea una solicitud de firma del producto que eligió el SaaS y encola su primer paso:
- * - HEADLESS: tramo A (crear sesión + Registro Civil).
- * - REGULAR: registro con documentos (los operadores del proveedor validan).
+ * Crea una solicitud de firma del producto que eligió el SaaS, en la cuenta de proveedor que
+ * atiende al tenant, y encola el primer paso según el flujo de esa oferta:
+ * - LIVENESS_API: tramo A (crear sesión + Registro Civil).
+ * - DOCUMENT_REVIEW: registro con documentos (los operadores del proveedor validan).
  *
  * Es idempotente por (cliente, Idempotency-Key): repetir la petición devuelve la misma solicitud.
  */
@@ -36,6 +39,7 @@ class CreateSignatureSession
         private ProviderRouter $router,
         private TermsCatalog $terms,
         private BlindIndex $blindIndex,
+        private ProductCatalog $catalog,
     ) {}
 
     /**
@@ -54,7 +58,9 @@ class CreateSignatureSession
         }
 
         $product = ProductType::from($data['product']);
-        $account = $this->router->accountFor($product);
+        $account = $this->router->accountFor($product, $client->tenant);
+        $offering = $this->catalog->offeringFor($product, $client->tenant, $account)
+            ?? throw ValidationException::withMessages(['product' => 'El producto no está contratado para este cliente.']);
         $currentTerms = $this->terms->current($account);
 
         if ($data['terms']['id'] !== $currentTerms->id || $data['terms']['version'] !== $currentTerms->version) {
@@ -65,13 +71,14 @@ class CreateSignatureSession
 
         $city = City::with('province')->findOrFail($data['applicant']['city_id']);
 
-        $request = $this->usageGuard->within($client->tenant, fn (): SignatureRequest => DB::transaction(function () use ($client, $idempotencyKey, $data, $product, $account, $currentTerms, $city) {
+        $request = $this->usageGuard->within($client->tenant, fn (): SignatureRequest => DB::transaction(function () use ($client, $idempotencyKey, $data, $offering, $account, $currentTerms, $city) {
             $request = SignatureRequest::create([
                 'tenant_id' => $client->tenant_id,
                 'api_client_id' => $client->getKey(),
                 'provider_account_id' => $account->getKey(),
                 'idempotency_key' => $idempotencyKey,
-                'product' => $product,
+                'product' => $offering->product,
+                'flow' => $offering->flow,
                 'application_type' => ApplicationType::from($data['application_type']),
                 'period' => CertificatePeriod::from($data['period']),
                 'status' => RequestStatus::draft(),
@@ -102,7 +109,7 @@ class CreateSignatureSession
 
             $request->transitionTo(RequestStatus::submitting(), 'api');
 
-            if ($product->equals(ProductType::regular())) {
+            if ($offering->flow->equals(SignatureFlow::documentReview())) {
                 SubmitRegularRequest::dispatch($request);
             } else {
                 Bus::chain([

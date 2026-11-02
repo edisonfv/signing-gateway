@@ -6,6 +6,7 @@ use App\Enums\ApplicationType;
 use App\Enums\CertificatePeriod;
 use App\Enums\ProductType;
 use App\Enums\RequestStatus;
+use App\Enums\SignatureFlow;
 use App\Exceptions\ProviderRequestException;
 use App\Jobs\CreateProviderSession;
 use App\Jobs\IssueCertificate;
@@ -121,6 +122,7 @@ class ApiFlowJobsTest extends TestCase
             'provider_account_id' => $account->id,
             'idempotency_key' => 'op-1',
             'product' => ProductType::headless(),
+            'flow' => SignatureFlow::livenessApi(),
             'application_type' => ApplicationType::naturalPerson(),
             'period' => CertificatePeriod::oneYear(),
             'status' => $status,

@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\ProductType;
 use App\Enums\RequestStatus;
 use App\Enums\SessionStep;
+use App\Enums\SignatureFlow;
 use App\Jobs\ReconcileSignatureSession;
 use App\Models\ProviderAccount;
 use App\Models\SignatureRequest;
@@ -58,7 +58,7 @@ class ReconcileSignatureSessions extends Command
 
         return SignatureRequest::query()
             ->whereBelongsTo($account)
-            ->whereIn('product', [ProductType::headless()->value, ProductType::regular()->value])
+            ->whereIn('flow', SignatureFlow::toValues())
             ->where(fn (Builder $query) => $query->whereNotNull('provider_session_id')->orWhereNotNull('provider_request_id'))
             ->where('updated_at', '<=', now()->subSeconds($config['quiet_seconds']))
             ->where(fn (Builder $query) => $query

@@ -6,10 +6,10 @@ use App\Enums\ApplicationType;
 use App\Enums\CertificatePeriod;
 use App\Enums\ProductType;
 use App\Enums\RequestStatus;
+use App\Enums\SignatureFlow;
 use App\Jobs\ReconcileSignatureSession;
 use App\Models\ProviderAccount;
 use App\Models\SignatureRequest;
-use Database\Seeders\ProvinceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -27,7 +27,6 @@ class ProviderWebhookTest extends TestCase
     {
         parent::setUp();
 
-        $this->seed(ProvinceSeeder::class);
         $this->account = $this->createFirmaSeguraAccount();
         $this->issueApiCredentials();
         Queue::fake();
@@ -111,6 +110,7 @@ class ProviderWebhookTest extends TestCase
             'provider_account_id' => $this->account->id,
             'idempotency_key' => (string) Str::uuid(),
             'product' => ProductType::headless(),
+            'flow' => SignatureFlow::livenessApi(),
             'application_type' => ApplicationType::naturalPerson(),
             'period' => CertificatePeriod::oneYear(),
             'status' => $status,

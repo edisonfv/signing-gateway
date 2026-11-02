@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Enums\ProductType;
 use App\Enums\RequestStatus;
+use App\Enums\SignatureFlow;
 use App\Exceptions\ProviderRequestException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreRegularCorrectionRequest;
@@ -29,7 +29,7 @@ class RegularCorrectionController extends Controller
     {
         Gate::authorize('update', $signatureSession);
 
-        abort_unless($signatureSession->product->equals(ProductType::regular()), 409, 'Las correcciones solo aplican a Firmas Regulares.');
+        abort_unless($signatureSession->flow->equals(SignatureFlow::documentReview()), 409, 'Las correcciones solo aplican a solicitudes con flujo DOCUMENT_REVIEW.');
         abort_unless($signatureSession->status->equals(RequestStatus::failedRetryable()), 409, 'La solicitud no tiene errores pendientes de corrección.');
 
         try {

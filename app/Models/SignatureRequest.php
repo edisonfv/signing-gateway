@@ -8,6 +8,7 @@ use App\Enums\CertificatePeriod;
 use App\Enums\ProductType;
 use App\Enums\RequestStatus;
 use App\Enums\SessionStep;
+use App\Enums\SignatureFlow;
 use App\Exceptions\InvalidStatusTransition;
 use App\Security\KeyRing;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -23,7 +24,7 @@ use Illuminate\Support\Facades\DB;
  * Solicitud canónica de firma. Su UUID es el referenceTransaction del proveedor.
  */
 #[Fillable([
-    'tenant_id', 'api_client_id', 'provider_account_id', 'idempotency_key', 'product',
+    'tenant_id', 'api_client_id', 'provider_account_id', 'idempotency_key', 'product', 'flow',
     'application_type', 'period', 'status', 'current_step', 'provider_session_id', 'provider_request_id',
     'provider_status', 'provider_stage', 'identification_hash', 'applicant', 'applicant_password', 'last_error',
     'remaining_liveness_attempts', 'issued_at', 'delivered_at', 'closed_at',
@@ -37,6 +38,7 @@ class SignatureRequest extends Model
     {
         return [
             'product' => ProductType::class,
+            'flow' => SignatureFlow::class,
             'application_type' => ApplicationType::class,
             'period' => CertificatePeriod::class,
             'status' => RequestStatus::class,
@@ -48,6 +50,7 @@ class SignatureRequest extends Model
             'issued_at' => 'datetime',
             'delivered_at' => 'datetime',
             'closed_at' => 'datetime',
+            'applicant_purged_at' => 'datetime',
             'last_reconciled_at' => 'datetime',
         ];
     }

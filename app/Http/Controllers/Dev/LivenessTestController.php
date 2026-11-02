@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Dev;
 
-use App\Enums\ProductType;
 use App\Enums\RequestStatus;
+use App\Enums\SignatureFlow;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SignatureSessionResource;
 use App\Jobs\IssueCertificate;
@@ -28,7 +28,7 @@ class LivenessTestController extends Controller
     public function show(?SignatureRequest $signatureRequest = null): View
     {
         $pending = SignatureRequest::query()
-            ->where('product', ProductType::headless()->value)
+            ->where('flow', SignatureFlow::livenessApi()->value)
             ->whereIn('status', [RequestStatus::awaitingApplicant()->value, RequestStatus::failedRetryable()->value])
             ->latest()
             ->limit(20)

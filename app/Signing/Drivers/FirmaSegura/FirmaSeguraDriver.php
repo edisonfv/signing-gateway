@@ -16,6 +16,7 @@ use App\Signing\Data\CertificateData;
 use App\Signing\Data\CivilRegistryResult;
 use App\Signing\Data\LivenessCredentials;
 use App\Signing\Data\LivenessResult;
+use App\Signing\Data\ProductOffering;
 use App\Signing\Data\RegularRequestState;
 use App\Signing\Data\SessionData;
 use App\Signing\Data\SessionTracking;
@@ -42,9 +43,14 @@ class FirmaSeguraDriver implements DrivesApiFlow, RegistersRegularRequests, Sign
         return 'firmasegura';
     }
 
-    public function supports(ProductType $product): bool
+    public function offerings(): array
     {
-        return $product->equals(ProductType::headless(), ProductType::regular());
+        return FirmaSeguraOfferings::all();
+    }
+
+    public function offering(ProductType $product): ?ProductOffering
+    {
+        return collect($this->offerings())->first(fn (ProductOffering $offering) => $offering->product->equals($product));
     }
 
     public function withAccount(ProviderAccount $account): static
