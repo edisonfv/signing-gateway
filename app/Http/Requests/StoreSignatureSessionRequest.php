@@ -10,6 +10,7 @@ use App\Models\ApiClient;
 use App\Rules\EcuadorianIdentification;
 use App\Rules\EcuadorianRuc;
 use App\Rules\ValidDocument;
+use App\Signing\Data\ProductOffering;
 use App\Signing\ProductCatalog;
 use Carbon\CarbonImmutable;
 use Closure;
@@ -19,18 +20,17 @@ use Illuminate\Validation\Validator;
 use Spatie\Enum\Laravel\Rules\EnumRule;
 
 /**
- * Datos para crear una solicitud de firma. El SaaS elige el flujo con `product`
- * (según las condiciones comerciales del tenant, ver GET /v1/products):
- *
- * - HEADLESS (Flujo por API): identidad por prueba de vida; persona natural con o sin RUC.
- * - REGULAR (Firmas Regulares): identidad por documentos que validan operadores; admite
- *   representante legal; video de autorización obligatorio desde los 65 años.
+ * Datos para crear una solicitud de firma. El SaaS elige `product` según GET /v1/products; los
+ * tipos de solicitante, vigencias, contraseña y documentos los fija la oferta del proveedor que
+ * atiende al tenant (ProductOffering), no reglas propias del gateway.
  *
  * No usa el trait TransformsEnums de spatie/laravel-enum: su método abstracto enums()
  * choca con Illuminate\Http\Request::enums() de Laravel 13.
  */
 class StoreSignatureSessionRequest extends FormRequest
 {
+    private ?ProductOffering $offering = null;
+
     public function authorize(): bool
     {
         return true;
@@ -41,24 +41,27 @@ class StoreSignatureSessionRequest extends FormRequest
      */
     public function rules(): array
     {
-        $catalog = app(ProductCatalog::class);
         $product = ProductType::tryFrom((string) $this->input('product'));
-        $isRegular = $product?->equals(ProductType::regular()) ?? false;
-        $applicationTypes = $product ? $catalog->applicationTypes($product) : [];
+        $offering = $this->offering();
+        $acceptsDocuments = $offering?->acceptsDocuments() ?? false;
         $ruc = ApplicationType::naturalPersonRuc()->value;
         $legal = ApplicationType::legalRepresentative()->value;
 
         return [
-            'product' => ['required', new EnumRule(ProductType::class), Rule::in(array_map(fn (ProductType $item) => $item->value, $catalog->implemented()))],
-            'application_type' => ['required', new EnumRule(ApplicationType::class), Rule::in(array_map(fn (ApplicationType $type) => $type->value, $applicationTypes))],
-            'period' => ['required', new EnumRule(CertificatePeriod::class), 'not_in:'.CertificatePeriod::oneDay()->value],
+            'product' => ['required', new EnumRule(ProductType::class), function (string $attribute, mixed $value, Closure $fail) use ($product, $offering) {
+                if ($product !== null && $offering === null) {
+                    $fail('El producto no está contratado para este cliente o no hay proveedor disponible.');
+                }
+            }],
+            'application_type' => ['required', new EnumRule(ApplicationType::class), Rule::in(array_map(fn (ApplicationType $type) => $type->value, $offering->applicationTypes ?? []))],
+            'period' => ['required', new EnumRule(CertificatePeriod::class), Rule::in(array_map(fn (CertificatePeriod $period) => $period->value, $offering->periods ?? []))],
 
             /**
-             * Contraseña del certificado elegida por el titular (solo HEADLESS). Opcional y no recomendada:
+             * Contraseña del certificado elegida por el titular (solo productos con `allows_holder_password`, p. ej. HEADLESS). Opcional y no recomendada:
              * si se omite, el proveedor genera una aleatoria de 16 caracteres que nadie conoce antes de la
              * emisión. Política del proveedor: al menos 8 caracteres, una mayúscula, una minúscula y un número.
              */
-            'password' => ['nullable', Rule::prohibitedIf($isRegular), 'string', 'max:64', 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)\S{8,}$/'],
+            'password' => ['nullable', Rule::prohibitedIf($offering !== null && ! $offering->allowsHolderPassword), 'string', 'max:64', 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)\S{8,}$/'],
 
             'applicant' => ['required', 'array:identification_number,finger_code,email,cellphone,address,city_id,person_ruc,birth_date'],
             'applicant.identification_number' => ['required', 'string', new EcuadorianIdentification],
@@ -68,15 +71,15 @@ class StoreSignatureSessionRequest extends FormRequest
             'applicant.address' => ['required', 'string', 'between:1,100'],
             'applicant.city_id' => ['required', 'uuid', 'exists:cities,id'],
             'applicant.person_ruc' => ['nullable', "required_if:application_type,{$ruc}", "prohibited_unless:application_type,{$ruc}", new EcuadorianRuc],
-            'applicant.birth_date' => [Rule::requiredIf($isRegular), 'nullable', 'date_format:Y-m-d', 'before:today'],
+            'applicant.birth_date' => [Rule::requiredIf($offering?->requiresBirthDate ?? false), 'nullable', 'date_format:Y-m-d', 'before:today'],
 
-            'company' => [Rule::requiredIf($isRegular && $this->input('application_type') === $legal), "prohibited_unless:application_type,{$legal}", 'array:ruc,name,position,appointment_expires_at'],
+            'company' => [Rule::requiredIf($this->input('application_type') === $legal), "prohibited_unless:application_type,{$legal}", 'array:ruc,name,position,appointment_expires_at'],
             'company.ruc' => ['required_with:company', 'string', 'regex:/^\d{10}001$/'],
             'company.name' => ['required_with:company', 'string', 'max:250'],
             'company.position' => ['required_with:company', 'string', 'max:100'],
             'company.appointment_expires_at' => ['required_with:company', 'date_format:Y-m-d', 'after:today'],
 
-            'documents' => [Rule::requiredIf($isRegular), Rule::prohibitedIf($product !== null && ! $isRegular), 'array:'.implode(',', DocumentType::toValues())],
+            'documents' => [Rule::requiredIf($acceptsDocuments), Rule::prohibitedIf($offering !== null && ! $acceptsDocuments), 'array:'.implode(',', DocumentType::toValues())],
             ...collect(DocumentType::cases())->mapWithKeys(fn (DocumentType $type) => [
                 "documents.{$type->value}" => ['nullable', 'string', new ValidDocument($type)],
             ])->all(),
@@ -91,7 +94,7 @@ class StoreSignatureSessionRequest extends FormRequest
     }
 
     /**
-     * Reglas que dependen de varios campos: producto contratado, edad y documentos requeridos.
+     * Reglas que dependen de varios campos: edad y documentos que exige la oferta del proveedor.
      * El contenido de cada archivo (tipo real y tamaño) lo valida ValidDocument.
      *
      * @return array<int, Closure(Validator): void>
@@ -100,26 +103,32 @@ class StoreSignatureSessionRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                if ($validator->errors()->isNotEmpty()) {
+                $offering = $this->offering();
+
+                if ($validator->errors()->isNotEmpty() || $offering === null || ! $offering->acceptsDocuments()) {
                     return;
                 }
 
-                $product = ProductType::from($this->input('product'));
-
-                /** @var ApiClient $client */
-                $client = $this->user();
-
-                if (! $client->tenant->allowsProduct($product)) {
-                    $validator->errors()->add('product', 'El producto no está contratado para este cliente.');
-
-                    return;
-                }
-
-                if ($product->equals(ProductType::regular())) {
-                    $this->validateRegularRequirements($validator);
-                }
+                $this->validateDocumentRequirements($validator, $offering);
             },
         ];
+    }
+
+    /**
+     * Oferta del producto para el tenant de la credencial (null si no lo contrató o no hay proveedor).
+     */
+    public function offering(): ?ProductOffering
+    {
+        $product = ProductType::tryFrom((string) $this->input('product'));
+
+        if ($product === null) {
+            return null;
+        }
+
+        /** @var ApiClient $client */
+        $client = $this->user();
+
+        return $this->offering ??= app(ProductCatalog::class)->offeringFor($product, $client->tenant);
     }
 
     /**
@@ -130,35 +139,29 @@ class StoreSignatureSessionRequest extends FormRequest
         return [
             'applicant.cellphone.regex' => 'El celular debe tener el formato +5939XXXXXXXX.',
             'password.regex' => 'La contraseña debe tener al menos 8 caracteres, sin espacios, con una mayúscula, una minúscula y un número.',
-            'password.prohibited' => 'La contraseña solo puede elegirse en el Flujo por API (HEADLESS).',
+            'password.prohibited' => 'El producto elegido no permite que el titular elija la contraseña.',
+            'period.in' => 'La vigencia no está disponible para el producto elegido.',
             'company.ruc.regex' => 'El RUC de la empresa debe tener 13 dígitos y terminar en 001.',
             'application_type.in' => 'El tipo de solicitante no está disponible para el producto elegido.',
         ];
     }
 
-    private function validateRegularRequirements(Validator $validator): void
+    private function validateDocumentRequirements(Validator $validator, ProductOffering $offering): void
     {
-        $age = CarbonImmutable::parse($this->input('applicant.birth_date'))->age;
+        $age = $this->filled('applicant.birth_date') ? CarbonImmutable::parse($this->input('applicant.birth_date'))->age : null;
 
-        if ($age < 18) {
+        if ($age !== null && $age < 18) {
             $validator->errors()->add('applicant.birth_date', 'El titular debe ser mayor de edad.');
 
             return;
         }
 
-        $required = app(ProductCatalog::class)->requiredDocuments(ProductType::regular(), ApplicationType::from($this->input('application_type')));
-
-        if ($age >= ProductCatalog::ELDERLY_AGE) {
-            $required[] = DocumentType::authorizationVideo();
-        }
-
         $documents = (array) $this->input('documents', []);
 
-        foreach ($required as $type) {
+        foreach ($offering->documentsFor(ApplicationType::from($this->input('application_type')), $age) as $type) {
             if (blank($documents[$type->value] ?? null)) {
                 $validator->errors()->add("documents.{$type->value}", "Falta el documento: {$type->label}.");
             }
         }
-
     }
 }

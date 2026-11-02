@@ -44,12 +44,30 @@ el SaaS da de alta y renueva afiliados sin el operador:
 
 | Petición | Qué hace |
 |---|---|
-| `PUT /v1/admin/tenants/{external_id}` | Registra o actualiza el afiliado (`name`, `products` opcional). Idempotente. |
+| `GET /v1/admin/products` | Catálogo completo del gateway: cada producto con la oferta del proveedor (flujo, vigencias, documentos) y las cuentas que lo atienden (`provider_accounts`). |
+| `PUT /v1/admin/tenants/{external_id}` | Registra o actualiza el afiliado (`name`, `products` opcional como lista simple; conserva las condiciones ya configuradas). Idempotente. |
+| `GET /v1/admin/tenants/{external_id}/products` | Condiciones del afiliado (`settings`) y la oferta efectiva que verá en `GET /v1/products` (`available`). |
+| `PUT /v1/admin/tenants/{external_id}/products` | Reemplaza los productos del afiliado: `[{product, periods?, preferred_provider_account_id?}]`. Lo que no se envía queda desactivado. |
 | `POST /v1/admin/tenants/{external_id}/clients` | Emite su credencial con `delivery_public_key` y `notification_url`; devuelve token y secretos **una sola vez** y `token_expires_at`. |
 | `DELETE /v1/admin/clients/{client}` | Revoca una credencial (al renovar: primero se guarda la nueva). |
 
 Las credenciales emitidas así son de cliente normal: nunca reciben `clients.manage`. Cada uso queda
 en la auditoría con la credencial de alta como actor.
+
+Condiciones por producto del afiliado:
+
+- `periods`: vigencias que puede vender (subconjunto de las que ofrece el proveedor). Omitido o `null` = todas.
+- `preferred_provider_account_id`: cuenta de proveedor que lo atiende. Si está inactiva, el gateway usa la
+  cuenta de mayor prioridad. Omitido o `null` = por prioridad.
+- Un afiliado sin productos configurados usa `GATEWAY_DEFAULT_PRODUCTS`.
+
+```json
+PUT /v1/admin/tenants/acme/products
+{ "products": [
+  { "product": "HEADLESS", "periods": ["ONE_YEAR", "TWO_YEARS"] },
+  { "product": "REGULAR" }
+] }
+```
 
 El admin del SaaS debe permitir configurar por cliente:
 
@@ -173,11 +191,16 @@ del SaaS **solo debe ofrecer lo que viene en esta respuesta** y construir el for
 | `HEADLESS` | Flujo por API | **Prueba de vida** con cámara (sección 7) | Al SaaS, **sellado** (sección 9) |
 | `REGULAR` | Firmas Regulares | **Documentos** que revisan operadores del proveedor | El proveedor lo envía **por correo al titular** |
 
-Campos útiles de cada producto: `application_types[].value` y `required_documents`, `periods`,
-`requires_liveness`, `requires_birth_date`, `documents[]` (tipos MIME y tamaño máximo) y `guides`
-(textos guía para selfie, cédula y la plantilla del video para mayores de 65).
+Los requisitos los declara **el proveedor que atiende al tenant**, no el gateway: si mañana otro
+proveedor atiende el producto, el SaaS recibe sus requisitos aquí sin cambiar código.
 
-Si se envía un producto no contratado, el gateway responde `422` en `product`.
+Campos útiles de cada producto: `flow` (`LIVENESS_API` o `DOCUMENT_REVIEW`), `delivery_mode`,
+`application_types[].value` y `required_documents`, `periods` (solo las vigencias contratadas),
+`requires_liveness`, `requires_birth_date`, `allows_holder_password`, `documents[]` (tipos MIME y tamaño
+máximo) y `guides` (textos guía para selfie, cédula y la plantilla del video para mayores de 65).
+
+Si se envía un producto no contratado, el gateway responde `422` en `product`; una vigencia no contratada,
+`422` en `period`.
 
 ---
 
@@ -194,7 +217,8 @@ Cachear estos catálogos en el SaaS (cambian muy poco).
 
 ## 6. Crear la solicitud
 
-1. `GET /v1/terms/current` → `{id, version, content, content_sha256}`. **Mostrar `content` al titular**
+1. `GET /v1/terms/current?product=HEADLESS` (o `REGULAR`; por defecto `HEADLESS`) →
+   `{id, version, content, content_sha256}`: los términos del proveedor que atenderá ese producto. **Mostrar `content` al titular**
    y exigir que acepte (checklist de certificación). Guardar en el SaaS la evidencia de aceptación.
 2. `POST /v1/signature-sessions` con la cabecera **`Idempotency-Key`** (UUID generado por el SaaS y
    guardado con la operación; si hay timeout, reintentar con **la misma** clave devuelve la misma solicitud).
@@ -328,8 +352,9 @@ Recurso devuelto por todos los endpoints de solicitudes:
 
 ```json
 { "data": {
-  "id": "uuid", "product": "HEADLESS", "delivery_mode": "CLIENT_SEALED",
+  "id": "uuid", "product": "HEADLESS", "flow": "LIVENESS_API", "delivery_mode": "CLIENT_SEALED",
   "status": "AWAITING_APPLICANT", "step": "CIVIL_REGISTRY",
+  "next_action": { "type": "START_LIVENESS", "method": "POST", "path": "/v1/signature-sessions/uuid/liveness-session" },
   "application_type": "NATURAL_PERSON", "period": "ONE_YEAR",
   "provider_status": "IN_PROGRESS", "remaining_liveness_attempts": null,
   "error": { "message": "…", "provider_status": "…", "codes": ["A01"] },
@@ -349,7 +374,19 @@ Recurso devuelto por todos los endpoints de solicitudes:
 | `DELIVERED` | Entregado (HEADLESS: al SaaS; REGULAR: el titular lo descargó) | Fin |
 | `REJECTED` / `EXPIRED` / `CANCELLED` / `FAILED` / `REVOKED` | Cerrada | Mostrar `error.message`; `FAILED` requiere soporte |
 
-- `GET /v1/signature-sessions` lista las solicitudes del tenant (`filter[status]=…`, `sort=-created_at`, paginado).
+**`next_action` dice qué hacer sin conocer el proveedor.** Conviene que el SaaS se guíe por este campo
+y no por `product`/`status`: así un proveedor nuevo no obliga a cambiar la lógica.
+
+| `next_action.type` | Qué hace el SaaS |
+|---|---|
+| `START_LIVENESS` | Pedir la sesión de prueba de vida (`POST …/liveness-session`) |
+| `FACE_LIVENESS` | Retirar las credenciales (`GET …/liveness-credentials`), correr el SDK y enviar el resultado |
+| `CORRECT_DATA` | Reenviar lo indicado en `error.codes` (`POST …/corrections`) |
+| `RETRIEVE_CERTIFICATE` | Retirar el certificado sellado (`GET …/certificate`) |
+| `WAIT` | Esperar la notificación |
+| `null` | Nada más que hacer (cerrada, o entregada por el proveedor al titular) |
+
+- `GET /v1/signature-sessions` lista todas las solicitudes del tenant (`filter[status]=…`, `filter[product]=…`, `sort=-created_at`, paginado).
 - `POST /v1/signature-sessions/{id}/refresh` consulta al proveedor **bajo demanda**. Usar solo cuando el
   usuario lo pide: comparte con la reconciliación automática un cupo de 900 consultas por hora (`429` si se agota).
 - El gateway reconcilia solo cada 10 minutos. **No hacer polling en bucle:** usar las notificaciones.

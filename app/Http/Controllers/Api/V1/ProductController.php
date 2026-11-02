@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\ApiClient;
+use App\Signing\Data\ProductOffering;
 use App\Signing\ProductCatalog;
 use Dedoc\Scramble\Attributes\Group;
 use Illuminate\Http\JsonResponse;
@@ -15,8 +16,8 @@ class ProductController extends Controller
     /**
      * Productos contratados
      *
-     * Flujos de firma que el tenant de la credencial tiene habilitados por sus condiciones
-     * comerciales, con sus requisitos (tipos de solicitante, vigencias, documentos y textos guía).
+     * Productos que el tenant de la credencial tiene contratados, con los requisitos que declara el
+     * proveedor que lo atiende (flujo, tipos de solicitante, vigencias contratadas, documentos y textos guía).
      * El frontend del SaaS elige el flujo con esta respuesta y envía `product` al crear la solicitud.
      */
     public function index(Request $request, ProductCatalog $catalog): JsonResponse
@@ -25,7 +26,7 @@ class ProductController extends Controller
         $client = $request->user();
 
         return response()->json([
-            'data' => array_map(fn ($product) => $catalog->describe($product), $catalog->availableFor($client->tenant)),
+            'data' => array_map(fn (ProductOffering $offering) => $catalog->describe($offering), $catalog->availableFor($client->tenant)),
         ]);
     }
 }

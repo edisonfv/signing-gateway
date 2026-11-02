@@ -2,8 +2,8 @@
 
 namespace App\Signing\ApiFlow;
 
-use App\Enums\ProductType;
 use App\Enums\RequestStatus;
+use App\Enums\SignatureFlow;
 use App\Exceptions\ProviderRequestException;
 use App\Exceptions\TrackingBudgetExhaustedException;
 use App\Models\AuditLog;
@@ -43,7 +43,7 @@ class SessionReconciler
         }
 
         try {
-            if ($request->product->equals(ProductType::regular())) {
+            if ($request->flow->equals(SignatureFlow::documentReview())) {
                 $state = $this->providers->regularFlowFor($request)->regularRequestState($request);
                 DB::transaction(fn () => $this->applyRegular($request, $state, $source));
 

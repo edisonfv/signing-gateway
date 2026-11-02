@@ -6,7 +6,6 @@ use App\Actions\IssueApiClientCredentials;
 use App\Models\ApiClient;
 use App\Models\Tenant;
 use App\Security\RequestSignature;
-use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
@@ -23,8 +22,6 @@ trait InteractsWithSignedApi
 
     protected function issueApiCredentials(string $externalId = 'acme'): void
     {
-        $this->seed(RolesAndPermissionsSeeder::class);
-
         $this->tenant = Tenant::create(['external_id' => $externalId, 'name' => Str::upper($externalId)]);
         $this->credentials = app(IssueApiClientCredentials::class)($this->tenant, "{$externalId} integración");
     }

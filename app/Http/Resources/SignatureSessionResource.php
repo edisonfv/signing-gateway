@@ -3,11 +3,12 @@
 namespace App\Http\Resources;
 
 use App\Models\SignatureRequest;
+use App\Signing\NextAction;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * Estado de una solicitud del Flujo por API. Nunca incluye datos del titular,
+ * Estado de una solicitud de firma, igual para todo producto y proveedor. Nunca incluye datos del titular,
  * documentos, credenciales ni el certificado.
  *
  * @mixin SignatureRequest
@@ -24,9 +25,11 @@ class SignatureSessionResource extends JsonResource
         return [
             'id' => $this->id,
             'product' => $this->product->value,
-            'delivery_mode' => $this->product->deliveryMode()->value,
+            'flow' => $this->flow->value,
+            'delivery_mode' => $this->flow->deliveryMode()->value,
             'status' => $this->status->value,
             'step' => $this->current_step?->value,
+            'next_action' => NextAction::for($this->resource),
             'application_type' => $this->application_type->value,
             'period' => $this->period->value,
             'provider_status' => $this->provider_status,
@@ -37,7 +40,7 @@ class SignatureSessionResource extends JsonResource
                 'codes' => $this->last_error['codes'] ?? [],
             ],
             'certificate_available' => $this->status->value === 'CERTIFICATE_STORED'
-                && $this->product->deliveryMode()->value === 'CLIENT_SEALED',
+                && $this->flow->deliveryMode()->value === 'CLIENT_SEALED',
             'created_at' => $this->created_at?->toIso8601String(),
             'issued_at' => $this->issued_at?->toIso8601String(),
             'delivered_at' => $this->delivered_at?->toIso8601String(),
