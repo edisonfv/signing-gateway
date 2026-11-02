@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Actions\IssueApiClientCredentials;
 use App\Models\ApiClient;
-use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\FakesFirmaSegura;
 use Tests\Concerns\InteractsWithSignedApi;
@@ -23,8 +22,7 @@ class PlatformCredentialTest extends TestCase
 
         $this->createFirmaSeguraAccount();
         $this->issueApiCredentials();
-        $platform = Tenant::create(['external_id' => 'plataforma', 'name' => 'Plataforma']);
-        $this->admin = app(IssueApiClientCredentials::class)($platform, 'Plataforma: alta', ['10.8.0.2'], abilities: ['clients.manage']);
+        $this->admin = app(IssueApiClientCredentials::class)(null, 'Plataforma: alta', ['10.8.0.2'], abilities: ['clients.manage']);
         $this->credentials = $this->admin;
     }
 

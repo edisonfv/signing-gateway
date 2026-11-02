@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Actions\SuspendTenant;
 use App\Http\Controllers\Controller;
-use App\Models\ApiClient;
 use App\Models\Tenant;
 use Dedoc\Scramble\Attributes\Group;
 use Illuminate\Http\JsonResponse;
@@ -21,7 +20,7 @@ class TenantStatusController extends Controller
      */
     public function suspend(Request $request, string $externalId, SuspendTenant $action): JsonResponse
     {
-        $tenant = $this->tenant($request, $externalId);
+        $tenant = $this->tenant($externalId);
         $action->suspend($tenant, $request->user(), $request->string('reason')->limit(250)->toString() ?: null);
 
         return $this->respond($tenant);
@@ -35,7 +34,7 @@ class TenantStatusController extends Controller
      */
     public function block(Request $request, string $externalId, SuspendTenant $action): JsonResponse
     {
-        $tenant = $this->tenant($request, $externalId);
+        $tenant = $this->tenant($externalId);
         $action->block($tenant, $request->user(), $request->string('reason')->limit(250)->toString() ?: null);
 
         return $this->respond($tenant);
@@ -46,21 +45,15 @@ class TenantStatusController extends Controller
      */
     public function resume(Request $request, string $externalId, SuspendTenant $action): JsonResponse
     {
-        $tenant = $this->tenant($request, $externalId);
+        $tenant = $this->tenant($externalId);
         $action->resume($tenant, $request->user());
 
         return $this->respond($tenant);
     }
 
-    private function tenant(Request $request, string $externalId): Tenant
+    private function tenant(string $externalId): Tenant
     {
-        $tenant = Tenant::query()->where('external_id', $externalId)->firstOrFail();
-
-        /** @var ApiClient $caller */
-        $caller = $request->user();
-        abort_if($tenant->is($caller->tenant), 409, 'La plataforma no puede detener su propio tenant.');
-
-        return $tenant;
+        return Tenant::query()->where('external_id', $externalId)->firstOrFail();
     }
 
     private function respond(Tenant $tenant): JsonResponse

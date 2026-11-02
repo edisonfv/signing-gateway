@@ -37,11 +37,30 @@ la plataforma la emita sola con su credencial de alta (abajo); el operador puede
 **Red:** la API solo responde a las IPs de `GATEWAY_ALLOWED_SOURCES` (la IP de la plataforma en el
 túnel). En producción es obligatoria: sin ella responde `403` a todo.
 
+### Instalación y emparejamiento
+
+En el servidor del gateway:
+
+```bash
+php artisan gateway:install   # llaves, migraciones, catálogos, token del proveedor, verificación y código
+php artisan gateway:pair      # solo si hace falta otro código (vence en 10 minutos, un solo uso)
+php artisan gateway:doctor    # verifica todo; ejecutarlo tras instalar o mudar de servidor
+```
+
+En la plataforma, la ficha del proveedor pide **URL del gateway** y **código de emparejamiento**.
+«Emparejar» llama a `POST /v1/pair` `{code}` (sin token ni firma; solo desde `GATEWAY_ALLOWED_SOURCES`,
+5 intentos por minuto) y recibe **una sola vez** la credencial de alta de la plataforma
+(`{client, token, signing_secret, token_expires_at}`), limitada a la IP que emparejó. Ningún secreto se
+copia a mano. Emparejar de nuevo revoca las credenciales anteriores de la plataforma: es la forma de
+rotarlas o de mudar el gateway de servidor.
+
+La plataforma **no es un afiliado**: sus credenciales no tienen tenant y solo llegan a `/v1/admin` y
+`/v1/platform` (`GET /v1/ping` responde `platform: true`).
+
 ### Alta automática desde el backoffice del SaaS
 
-Con una **credencial de alta** (ability `clients.manage`, emitida solo para la plataforma con
-`gateway:client:create plataforma "Alta de afiliados" --ability=clients.manage --ip=<ip del SaaS>`),
-el SaaS da de alta y renueva afiliados sin el operador:
+Con la **credencial de alta** (ability `clients.manage`, obtenida al emparejar), el SaaS da de alta y
+renueva afiliados sin el operador:
 
 | Petición | Qué hace |
 |---|---|
@@ -61,8 +80,8 @@ el SaaS da de alta y renueva afiliados sin el operador:
 
 ### Credencial de servicio y reenvío de avisos del proveedor
 
-El operador configura **solo la credencial de alta**. Con ella la plataforma emite (y renueva) su
-credencial de servicio, de uso frecuente y bajo privilegio:
+El operador solo genera el código de emparejamiento. Con la credencial de alta la plataforma emite
+(y renueva) su credencial de servicio, de uso frecuente y bajo privilegio:
 
 | Petición (ability `platform.service`) | Qué hace |
 |---|---|

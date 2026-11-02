@@ -161,8 +161,7 @@ class IssuanceLedgerTest extends TestCase
 
     private function asPlatform(): void
     {
-        $platform = Tenant::create(['external_id' => 'plataforma', 'name' => 'Plataforma']);
-        $this->credentials = app(IssueApiClientCredentials::class)($platform, 'Plataforma: alta', abilities: ['clients.manage']);
+        $this->credentials = app(IssueApiClientCredentials::class)(null, 'Plataforma: alta', abilities: ['clients.manage']);
     }
 
     private function makeRequest(RequestStatus $status, ?ProductType $product = null, ?Tenant $tenant = null, mixed $issuedAt = null): SignatureRequest

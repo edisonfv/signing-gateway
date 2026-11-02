@@ -22,34 +22,36 @@ class IssueApiClientCredentials
 {
     /**
      * @param  array<int, string>  $allowedIps
-     * @param  array<int, string>  $abilities  subconjunto de PermissionName::forApiClients(), o clients.manage
-     *                                         para la credencial de alta de la plataforma; vacío = las de un cliente
+     * @param  Tenant|null  $tenant  null = credencial de la plataforma (alta de afiliados o servicio)
+     * @param  array<int, string>  $abilities  afiliado: subconjunto de PermissionName::forApiClients() (vacío = todas);
+     *                                         plataforma: clients.manage y/o platform.service (obligatorio)
      * @return array{client: ApiClient, token: string, signing_secret: string, notification_secret: string, expires_at: string|null}
      */
-    public function __invoke(Tenant $tenant, string $name, array $allowedIps = [], ?string $deliveryPublicKey = null, ?string $notificationUrl = null, array $abilities = [], ?ApiClient $issuedBy = null): array
+    public function __invoke(?Tenant $tenant, string $name, array $allowedIps = [], ?string $deliveryPublicKey = null, ?string $notificationUrl = null, array $abilities = [], ?ApiClient $issuedBy = null): array
     {
         if ($deliveryPublicKey !== null && ! SealedBox::isValidPublicKey($deliveryPublicKey)) {
             throw new InvalidArgumentException('La llave pública de entrega debe ser una llave X25519 en base64 (32 bytes).');
         }
 
-        $forClients = array_map(fn (PermissionName $permission) => $permission->value, PermissionName::forApiClients());
-        $allowed = [...$forClients, PermissionName::clientsManage()->value, PermissionName::platformService()->value];
+        // Un afiliado (con tenant) solo recibe abilities de cliente; la plataforma (sin tenant), solo las suyas.
+        $allowed = $tenant === null
+            ? [PermissionName::clientsManage()->value, PermissionName::platformService()->value]
+            : array_map(fn (PermissionName $permission) => $permission->value, PermissionName::forApiClients());
         $unknown = array_diff($abilities, $allowed);
 
-        if ($unknown !== []) {
-            throw new InvalidArgumentException('Abilities no permitidas para un cliente: '.implode(', ', $unknown).'. Válidas: '.implode(', ', $allowed).'.');
+        if ($unknown !== [] || ($tenant === null && $abilities === [])) {
+            throw new InvalidArgumentException('Abilities no permitidas para '.($tenant === null ? 'la plataforma' : 'un afiliado').': '.(implode(', ', $unknown) ?: 'ninguna').'. Válidas: '.implode(', ', $allowed).'.');
         }
 
-        // Una credencial solo de lectura (p. ej. el catálogo de la plataforma) no puede emitir ni retirar;
-        // clients.manage (dar de alta afiliados) nunca se otorga por defecto.
-        $abilities = $abilities === [] ? $forClients : array_values(array_unique($abilities));
+        // Sin abilities, un afiliado recibe las de cliente; clients.manage nunca se otorga a un afiliado.
+        $abilities = $abilities === [] ? $allowed : array_values(array_unique($abilities));
 
         $signingSecret = Str::random(64);
         $notificationSecret = Str::random(64);
 
         return DB::transaction(function () use ($tenant, $name, $allowedIps, $deliveryPublicKey, $notificationUrl, $signingSecret, $notificationSecret, $abilities, $issuedBy) {
             $client = ApiClient::create([
-                'tenant_id' => $tenant->getKey(),
+                'tenant_id' => $tenant?->getKey(),
                 'name' => $name,
                 'signing_secret' => $signingSecret,
                 'notification_secret' => $notificationSecret,
@@ -58,7 +60,9 @@ class IssueApiClientCredentials
                 'allowed_ips' => $allowedIps ?: null,
             ]);
 
-            $client->assignRole(RoleName::saasClient()->value);
+            if ($tenant !== null) {
+                $client->assignRole(RoleName::saasClient()->value);
+            }
 
             $token = $client->createToken(
                 $name,
@@ -66,7 +70,7 @@ class IssueApiClientCredentials
                 now()->addDays(config('gateway.api_clients.token_ttl_days')),
             );
 
-            AuditLog::record('api_client.issued', $issuedBy, $client, context: ['tenant' => $tenant->getKey(), 'abilities' => $abilities], ip: $issuedBy ? null : 'cli');
+            AuditLog::record('api_client.issued', $issuedBy, $client, context: ['tenant' => $tenant?->getKey() ?? 'platform', 'abilities' => $abilities], ip: $issuedBy ? null : 'cli');
 
             return [
                 'client' => $client,

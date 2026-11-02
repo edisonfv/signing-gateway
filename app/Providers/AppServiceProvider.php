@@ -49,6 +49,9 @@ class AppServiceProvider extends ServiceProvider
             IssueCertificate::class,
         ], queue: 'interactive');
 
+        // Emparejamiento sin credencial: pocos intentos por IP (además, 5 fallos invalidan el código).
+        RateLimiter::for('pairing', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
+
         RateLimiter::for('api-client', function (Request $request) {
             $client = $request->user();
 

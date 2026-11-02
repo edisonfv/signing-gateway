@@ -9,16 +9,28 @@ en internet. El operador configura una sola credencial; todo lo demás lo hace l
 
 ---
 
-## 1. Ficha del proveedor: solo URL y credencial de alta
+## 1. Ficha del proveedor: URL y código de emparejamiento
 
-**Hoy:** la pantalla pide la credencial de catálogo y la de alta.
-**Cambio:** pedir solo **URL del microservicio** y **credencial de alta** (token + secreto de firma).
+**Hoy:** la pantalla pide la credencial de catálogo y la de alta, y el operador copia tokens y secretos.
+**Cambio:** pedir solo **URL del microservicio** y **código de emparejamiento** (p. ej. `K7PX-92QM`, lo
+genera el operador con `php artisan gateway:pair`), con un botón **«Emparejar»**. No guardar el código.
 
-- Al guardar la credencial de alta, emitir la **credencial de servicio**:
-  `POST /v1/admin/platform-credential` (con la de alta) → `{client, token, signing_secret, token_expires_at}`.
-  Guardarla cifrada en `Provider::credentials['service']`. Probarla con `GET /v1/ping`.
-- Quitar los campos de la credencial de catálogo. Migración de datos: si existe `credentials['catalog']`,
-  emitir la de servicio y luego revocar la de catálogo con `DELETE /v1/admin/clients/{client}`.
+Al emparejar:
+
+1. `POST {url}/v1/pair` con `{"code": "..."}` (sin token ni firma). Respuesta `201`:
+   `{client, token, signing_secret, token_expires_at}` = **credencial de alta**. `422` = código inválido,
+   usado o vencido (pedir uno nuevo); `403` = la IP de la plataforma no está en `GATEWAY_ALLOWED_SOURCES`.
+2. Guardarla cifrada en `Provider::credentials['provisioning']` y probarla con `GET /v1/ping`
+   (responde `platform: true`).
+3. Con ella, emitir la **credencial de servicio**: `POST /v1/admin/platform-credential` →
+   `{client, token, signing_secret, token_expires_at}`. Guardarla cifrada en `Provider::credentials['service']`.
+4. Si había `credentials['catalog']`, borrarla: emparejar ya revocó todas las credenciales anteriores
+   de la plataforma en el gateway.
+
+Emparejar otra vez (otro servidor, rotación o credencial perdida) repite estos pasos; los afiliados no
+se tocan, sus credenciales siguen igual.
+
+- Quitar de la pantalla los campos de token y secreto de catálogo y de alta (ya no se escriben a mano).
 - Renovación: en `gateway:renew-credentials`, si la de servicio vence en menos de
   `gateway.renew_days_before` días, emitir una nueva, guardarla, probarla y revocar la anterior
   (el mismo patrón que `GatewayProvisioning::connect`).

@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\CertificateController;
 use App\Http\Controllers\Api\V1\LivenessCredentialController;
 use App\Http\Controllers\Api\V1\LivenessResultController;
 use App\Http\Controllers\Api\V1\LivenessSessionController;
+use App\Http\Controllers\Api\V1\PairingController;
 use App\Http\Controllers\Api\V1\PingController;
 use App\Http\Controllers\Api\V1\Platform\ProductController as PlatformProductController;
 use App\Http\Controllers\Api\V1\Platform\ProviderEventController;
@@ -31,6 +32,12 @@ use Illuminate\Support\Facades\Route;
 | api.source (red de la plataforma) → auth:api (token Sanctum de un ApiClient) → api.client (vigente, tenant activo, IP)
 | → api.signature (HMAC + timestamp + nonce) → abilities → throttle
 */
+// Emparejamiento: aún no hay credencial, así que no hay token ni firma; solo la red de la plataforma
+// y pocos intentos. El código es de un solo uso (gateway:pair).
+Route::post('v1/pair', [PairingController::class, 'store'])
+    ->middleware(['api.source', 'throttle:pairing'])
+    ->name('v1.pair');
+
 Route::prefix('v1')
     ->name('v1.')
     ->middleware(['api.source', 'auth:api', 'api.client', 'api.signature', 'throttle:api-client'])
