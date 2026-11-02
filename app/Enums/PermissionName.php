@@ -17,6 +17,7 @@ use Spatie\Enum\Laravel\Enum;
  * @method static self limitsManage()
  * @method static self providersManage()
  * @method static self clientsManage()
+ * @method static self platformService()
  * @method static self auditView()
  */
 final class PermissionName extends Enum
@@ -48,6 +49,8 @@ final class PermissionName extends Enum
             'limitsManage' => 'limits.manage',
             'providersManage' => 'providers.manage',
             'clientsManage' => 'clients.manage',
+            // Credencial de servicio de la plataforma: catálogo completo y reenvío de avisos del proveedor.
+            'platformService' => 'platform.service',
             'auditView' => 'audit.view',
         ];
     }

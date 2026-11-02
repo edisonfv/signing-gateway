@@ -5,6 +5,7 @@ namespace App\Jobs\Concerns;
 use App\Enums\RequestStatus;
 use App\Enums\SessionStep;
 use App\Exceptions\ProviderRequestException;
+use App\Jobs\Middleware\StopWhenEmissionBlocked;
 use App\Models\ClientNotification;
 use App\Models\SignatureRequest;
 use App\Signing\Contracts\DrivesApiFlow;
@@ -36,6 +37,7 @@ trait HandlesProviderSession
     {
         return [
             Skip::unless(fn (): bool => $this->signatureRequest->fresh()->status->equals(...$this->runnableStatuses())),
+            new StopWhenEmissionBlocked,
             (new WithoutOverlapping($this->signatureRequest->getKey()))->releaseAfter(5)->expireAfter(180),
         ];
     }

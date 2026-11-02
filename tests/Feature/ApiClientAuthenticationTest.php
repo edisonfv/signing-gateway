@@ -110,9 +110,18 @@ class ApiClientAuthenticationTest extends TestCase
         $this->signedGet('/api/v1/ping')->assertUnauthorized();
     }
 
-    public function test_suspended_tenant_is_rejected(): void
+    public function test_suspended_tenant_can_only_read_and_a_blocked_one_gets_403_everywhere(): void
     {
         $this->tenant->update(['suspended_at' => now()]);
+
+        $this->signedGet('/api/v1/ping')->assertOk();
+        $this->signedGet('/api/v1/signature-sessions')->assertOk();
+        $this->signedGet('/api/v1/products')
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Afiliado suspendido: solo puede consultar sus solicitudes y retirar certificados ya emitidos.');
+        $this->signedJson('POST', '/api/v1/signature-sessions', [], ['Idempotency-Key' => 'op-1'])->assertForbidden();
+
+        $this->tenant->update(['blocked_at' => now()]);
 
         $this->signedGet('/api/v1/ping')->assertForbidden();
     }

@@ -8,6 +8,7 @@ use App\Enums\DocumentType;
 use App\Enums\ProductType;
 use App\Enums\RequestStatus;
 use App\Enums\SignatureFlow;
+use App\Exceptions\EmissionHaltedException;
 use App\Jobs\CreateProviderSession;
 use App\Jobs\SubmitRegularRequest;
 use App\Jobs\ValidateCivilRegistry;
@@ -17,6 +18,7 @@ use App\Models\SignatureDocument;
 use App\Models\SignatureRequest;
 use App\Security\BlindIndex;
 use App\Signing\ApiFlow\TermsCatalog;
+use App\Signing\EmissionGuard;
 use App\Signing\Limits\UsageGuard;
 use App\Signing\ProductCatalog;
 use App\Signing\Routing\ProviderRouter;
@@ -40,6 +42,7 @@ class CreateSignatureSession
         private TermsCatalog $terms,
         private BlindIndex $blindIndex,
         private ProductCatalog $catalog,
+        private EmissionGuard $emissionGuard,
     ) {}
 
     /**
@@ -48,6 +51,10 @@ class CreateSignatureSession
      */
     public function __invoke(ApiClient $client, string $idempotencyKey, array $data): array
     {
+        if ($this->emissionGuard->isHalted()) {
+            throw new EmissionHaltedException;
+        }
+
         $existing = SignatureRequest::query()
             ->whereBelongsTo($client)
             ->where('idempotency_key', $idempotencyKey)

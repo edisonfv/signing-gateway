@@ -27,14 +27,18 @@ Hoy integra **FirmaSeguraEC**; está diseñado para añadir otros proveedores si
 ## 2. Topología
 
 ```
-                 WireGuard (solo IP Plesk)                    Salida solo a api.firmaseguraec.com
+                 WireGuard (solo IP de la plataforma)          Salida solo a api.firmaseguraec.com
 [SaaS / Plesk] ─────────────────────────────► [Gateway] ───────────────────────────────────────► [FirmaSegura]
-      ▲   API interna  :8443 (wg0)                │  ▲                                              │
-      │                                           │  │  Webhook público :443  /webhooks/{provider}/{account}
-      └──── notificaciones firmadas (outbox) ─────┘  └──────────────── solo IPs del proveedor ◄──────┘
+   ▲    ▲    API interna :8443 (wg0)              │                                                  │
+   │    └──── notificaciones firmadas ────────────┘                                                  │
+   └──────── avisos del proveedor: /provider-webhooks/... (la SaaS los reenvía por el túnel) ◄───────┘
 ```
 
-- **Dos superficies HTTP separadas**: API interna (escucha solo en la interfaz del túnel) y webhook público (nginx, una sola ruta, IP allowlist del proveedor).
+- **Una sola superficie HTTP**: la API interna, en la interfaz del túnel. El gateway **no se expone a
+  internet**: los avisos del proveedor llegan a la ruta pública de la plataforma, que los reenvía sin
+  interpretarlos a `POST /v1/platform/provider-events/...` (rediseño 2026-11-02, ver §17).
+- Defensa en profundidad: además del firewall, la aplicación rechaza orígenes fuera de
+  `GATEWAY_ALLOWED_SOURCES` y solo notifica a hosts de `GATEWAY_NOTIFICATION_HOSTS` (HTTPS, sin redirecciones).
 - El **token del proveedor existe solo en el gateway**, restringido por IP en FirmaSegura a la IP del gateway.
 - Un gateway (o configuración) por ambiente: `sandbox` → `api.dev-firmaseguraec.com`, `production` → `api.firmaseguraec.com`.
 
@@ -822,3 +826,27 @@ Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `Transf
 6. Formato definitivo del celular (`+5939XXXXXXXX`).
 7. ¿Este flujo requiere habilitación de permisos o scopes para nuestro token?
 8. ¿Hay límite de tasa en estos endpoints, además de las 1000 consultas de estado por hora?
+
+---
+
+## 17. Endurecimiento 2026-11-02 — gateway cerrado y control de afiliados
+
+- **Sin superficie pública.** La ruta `webhooks/*` se eliminó. `callbackUrl` apunta a la ruta pública de
+  reenvío de la plataforma (`GATEWAY_WEBHOOK_URL`), que pasa el cuerpo tal cual a
+  `POST /v1/platform/provider-events/{provider}/{account}/{token}` con su credencial de servicio. El token
+  del aviso es un HMAC del id de la cuenta con la llave de índices ciegos (ya no con `APP_KEY`).
+- **Red en la aplicación.** `RestrictSourceNetwork` rechaza orígenes fuera de `GATEWAY_ALLOWED_SOURCES`;
+  en producción, sin lista, rechaza todo. Las notificaciones solo van por HTTPS a hosts de
+  `GATEWAY_NOTIFICATION_HOSTS` y sin seguir redirecciones (evita SSRF desde el gateway).
+- **Credencial de servicio** (`platform.service`): catálogo completo y reenvío de avisos; la emite la
+  plataforma con su credencial de alta (`POST /v1/admin/platform-credential`).
+- **Suspender / bloquear / reactivar** un afiliado (`/v1/admin/tenants/{id}/suspend|block|resume`, o
+  `gateway:tenant:suspend`): suspender es comercial (aún retira lo ya emitido); bloquear es por incidente
+  (revoca todas sus credenciales). En ambos se cancelan en el proveedor las solicitudes abiertas no emitidas.
+- **Freno en los jobs.** `StopWhenEmissionBlocked` corre antes de cada llamada al proveedor: si el
+  afiliado está suspendido o bloqueado, la credencial revocada o la emisión detenida, cancela la
+  solicitud sin llamar al proveedor. Lo ya encolado no sigue en segundo plano.
+- **Botón de pánico.** `php artisan gateway:halt` detiene toda emisión (503 al crear, jobs cancelados);
+  `--off` la reanuda, `--status` la muestra. Es un archivo en `storage/framework`, como el modo mantenimiento.
+- **Credenciales idempotentes.** `Idempotency-Key` en la emisión revoca la credencial del intento anterior;
+  `GET /v1/admin/tenants/{id}/clients` las lista sin secretos.

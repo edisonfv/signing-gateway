@@ -2,14 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Actions\IssueApiClientCredentials;
 use App\Enums\ApplicationType;
 use App\Enums\CertificatePeriod;
 use App\Enums\ProductType;
 use App\Enums\RequestStatus;
 use App\Enums\SignatureFlow;
 use App\Jobs\ReconcileSignatureSession;
+use App\Models\ApiClient;
 use App\Models\ProviderAccount;
 use App\Models\SignatureRequest;
+use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -23,13 +26,21 @@ class ProviderWebhookTest extends TestCase
 
     private ProviderAccount $account;
 
+    /** @var array{client: ApiClient, token: string, signing_secret: string, notification_secret: string, expires_at: string|null} */
+    private array $affiliate;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->account = $this->createFirmaSeguraAccount();
         $this->issueApiCredentials();
+        $this->affiliate = $this->credentials;
         Queue::fake();
+
+        // La plataforma reenvía con su credencial de servicio (ability platform.service).
+        $platform = Tenant::create(['external_id' => 'plataforma', 'name' => 'Plataforma']);
+        $this->credentials = app(IssueApiClientCredentials::class)($platform, 'Plataforma: servicio', abilities: ['platform.service']);
     }
 
     public function test_the_callback_url_is_only_built_with_a_public_url(): void
@@ -37,9 +48,9 @@ class ProviderWebhookTest extends TestCase
         config(['gateway.webhooks.url' => null]);
         $this->assertNull($this->account->webhookUrl());
 
-        config(['gateway.webhooks.url' => 'https://gw.ejemplo.test/']);
+        config(['gateway.webhooks.url' => 'https://app.ejemplo.test/provider-webhooks/']);
         $this->assertSame(
-            "https://gw.ejemplo.test/webhooks/firmasegura/{$this->account->id}/{$this->account->webhookToken()}",
+            "https://app.ejemplo.test/provider-webhooks/firmasegura/{$this->account->id}/{$this->account->webhookToken()}",
             $this->account->webhookUrl(),
         );
     }
@@ -48,7 +59,7 @@ class ProviderWebhookTest extends TestCase
     {
         $request = $this->makeRequest(RequestStatus::validating());
 
-        $this->postJson($this->url(), $this->event($request->provider_session_id))->assertStatus(202);
+        $this->signedJson('POST', $this->url(), $this->event($request->provider_session_id))->assertStatus(202);
 
         Queue::assertPushed(ReconcileSignatureSession::class, fn (ReconcileSignatureSession $job) => $job->signatureRequest->is($request) && $job->source === 'webhook');
         $this->assertSame('VALIDATING', $request->refresh()->status->value);
@@ -59,8 +70,8 @@ class ProviderWebhookTest extends TestCase
         $request = $this->makeRequest(RequestStatus::validating());
         $event = $this->event($request->provider_session_id);
 
-        $this->postJson($this->url(), $event)->assertStatus(202);
-        $this->postJson($this->url(), $event)->assertStatus(202);
+        $this->signedJson('POST', $this->url(), $event)->assertStatus(202);
+        $this->signedJson('POST', $this->url(), $event)->assertStatus(202);
 
         Queue::assertPushed(ReconcileSignatureSession::class, 1);
     }
@@ -69,19 +80,19 @@ class ProviderWebhookTest extends TestCase
     {
         $request = $this->makeRequest(RequestStatus::validating());
 
-        $this->postJson("/webhooks/firmasegura/{$this->account->id}/otro-token", $this->event($request->provider_session_id))->assertNotFound();
-        $this->postJson($this->url(), $this->event((string) Str::uuid()))->assertStatus(202);
-        $this->postJson($this->url(), ['type' => 'otro', 'subject' => 'x'])->assertStatus(422);
+        $this->signedJson('POST', "/api/v1/platform/provider-events/firmasegura/{$this->account->id}/otrotoken", $this->event($request->provider_session_id))->assertNotFound();
+        $this->signedJson('POST', $this->url(), $this->event((string) Str::uuid()))->assertStatus(202);
+        $this->signedJson('POST', $this->url(), ['type' => 'otro', 'subject' => 'x'])->assertStatus(422);
 
         $closed = $this->makeRequest(RequestStatus::rejected());
-        $this->postJson($this->url(), $this->event($closed->provider_session_id))->assertStatus(202);
+        $this->signedJson('POST', $this->url(), $this->event($closed->provider_session_id))->assertStatus(202);
 
         Queue::assertNothingPushed();
     }
 
     private function url(): string
     {
-        return "/webhooks/firmasegura/{$this->account->id}/{$this->account->webhookToken()}";
+        return "/api/v1/platform/provider-events/firmasegura/{$this->account->id}/{$this->account->webhookToken()}";
     }
 
     /**
@@ -106,7 +117,7 @@ class ProviderWebhookTest extends TestCase
     {
         return SignatureRequest::create([
             'tenant_id' => $this->tenant->id,
-            'api_client_id' => $this->credentials['client']->id,
+            'api_client_id' => $this->affiliate['client']->id,
             'provider_account_id' => $this->account->id,
             'idempotency_key' => (string) Str::uuid(),
             'product' => ProductType::headless(),

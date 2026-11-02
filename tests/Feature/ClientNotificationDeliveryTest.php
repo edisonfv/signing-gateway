@@ -62,6 +62,8 @@ class ClientNotificationDeliveryTest extends TestCase
 
             return $request->url() === 'https://saas.test/hooks/firmas'
                 && $request['id'] === $notification->id
+                && $request['tenant'] === $this->client->tenant->external_id
+                && $request['client'] === $this->client->id
                 && $request['data'] === ['step' => 'ISSUANCE']
                 && hash_equals($expected, $request->header('X-Gateway-Signature')[0]);
         });

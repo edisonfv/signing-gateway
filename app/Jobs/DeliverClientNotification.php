@@ -4,12 +4,14 @@ namespace App\Jobs;
 
 use App\Models\AuditLog;
 use App\Models\ClientNotification;
+use App\Security\NotificationTarget;
 use App\Security\RequestSignature;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -45,18 +47,31 @@ class DeliverClientNotification implements ShouldBeEncrypted, ShouldBeUnique, Sh
             return;
         }
 
+        // La URL se validó al emitir la credencial; se vuelve a comprobar por si cambió la lista permitida.
+        if (! NotificationTarget::isAllowed($client->notification_url)) {
+            $notification->update(['failed_at' => now(), 'last_error' => 'Host de notificaciones no permitido.']);
+            AuditLog::record('client_notification.blocked_target', subject: $notification, ip: 'queue');
+
+            return;
+        }
+
         $notification->increment('attempts');
 
         $body = json_encode([
             'id' => $notification->getKey(),
+            // Con una sola URL de notificaciones para toda la plataforma, identifican al afiliado
+            // y la credencial (cuyo secreto de notificaciones verifica la firma).
+            'tenant' => $client->tenant->external_id,
+            'client' => $client->getKey(),
             'event' => $notification->event,
             'occurred_at' => $notification->created_at->toIso8601String(),
             'data' => $notification->payload,
         ], JSON_THROW_ON_ERROR);
         $timestamp = (string) now()->getTimestamp();
 
-        Http::timeout(15)
+        $response = Http::timeout(15)
             ->connectTimeout(5)
+            ->withoutRedirecting()
             ->withHeaders([
                 'X-Gateway-Timestamp' => $timestamp,
                 'X-Gateway-Signature' => RequestSignature::signNotification($client->notification_secret, $timestamp, $body),
@@ -64,6 +79,11 @@ class DeliverClientNotification implements ShouldBeEncrypted, ShouldBeUnique, Sh
             ->withBody($body, 'application/json')
             ->post($client->notification_url)
             ->throw();
+
+        // Sin seguir redirecciones, un 3xx no es una entrega: solo cuenta un 2xx.
+        if (! $response->successful()) {
+            throw new RuntimeException("La plataforma respondió {$response->status()}.");
+        }
 
         $notification->update(['delivered_at' => now(), 'last_error' => null]);
     }

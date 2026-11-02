@@ -30,11 +30,12 @@ Navegador del titular ──► Backend del SaaS ──(token + firma HMAC)─�
 
 ## 2. Configuración por cliente (admin del SaaS)
 
-Cada cliente del SaaS (tenant) tiene **su propia credencial**, limitada a su tenant. El operador del
-gateway la emite con `php artisan gateway:client:create` y entrega los valores una sola vez.
-Con `--ability=catalogs.view` emite una credencial que solo lee el catálogo (`GET /v1/products` y
-catálogos), como la que usa la plataforma del SaaS para sincronizar ofertas; `gateway:client:revoke`
-revoca una credencial al instante.
+Cada cliente del SaaS (tenant) tiene **su propia credencial**, limitada a su tenant. Lo normal es que
+la plataforma la emita sola con su credencial de alta (abajo); el operador puede hacerlo a mano con
+`php artisan gateway:client:create`. `gateway:client:revoke` revoca una credencial al instante.
+
+**Red:** la API solo responde a las IPs de `GATEWAY_ALLOWED_SOURCES` (la IP de la plataforma en el
+túnel). En producción es obligatoria: sin ella responde `403` a todo.
 
 ### Alta automática desde el backoffice del SaaS
 
@@ -48,10 +49,37 @@ el SaaS da de alta y renueva afiliados sin el operador:
 | `PUT /v1/admin/tenants/{external_id}` | Registra o actualiza el afiliado (`name`, `products` opcional como lista simple; conserva las condiciones ya configuradas). Idempotente. |
 | `GET /v1/admin/tenants/{external_id}/products` | Condiciones del afiliado (`settings`) y la oferta efectiva que verá en `GET /v1/products` (`available`). |
 | `PUT /v1/admin/tenants/{external_id}/products` | Reemplaza los productos del afiliado: `[{product, periods?, preferred_provider_account_id?}]`. Lo que no se envía queda desactivado. |
-| `POST /v1/admin/tenants/{external_id}/clients` | Emite su credencial con `delivery_public_key` y `notification_url`; devuelve token y secretos **una sola vez** y `token_expires_at`. |
+| `POST /v1/admin/tenants/{external_id}/clients` | Emite su credencial con `delivery_public_key` y `notification_url` (HTTPS, host en `GATEWAY_NOTIFICATION_HOSTS`); devuelve token y secretos **una sola vez** y `token_expires_at`. Con `Idempotency-Key`, un reintento revoca la credencial del intento anterior (`replaced_clients`). |
+| `GET /v1/admin/tenants/{external_id}/clients` | Credenciales del afiliado (sin secretos): para detectar y revocar las que la plataforma no tiene guardadas. |
 | `DELETE /v1/admin/clients/{client}` | Revoca una credencial (al renovar: primero se guarda la nueva). |
+| `POST /v1/admin/tenants/{external_id}/suspend` | Suspensión comercial inmediata: no crea ni avanza solicitudes; las abiertas no emitidas se cancelan en el proveedor. Aún consulta y retira lo ya emitido. |
+| `POST /v1/admin/tenants/{external_id}/block` | Incidente: como suspender, y revoca todas sus credenciales; no puede hacer nada. |
+| `POST /v1/admin/tenants/{external_id}/resume` | Reactiva (tras un bloqueo hay que emitir credenciales nuevas). |
+| `POST /v1/admin/platform-credential` | Emite la **credencial de servicio** de la plataforma (ability `platform.service`), con las IPs de la de alta. |
 | `GET /v1/admin/issuances` | Registro de emisiones: un certificado emitido por fila, en orden de `sequence` (filtros `after_sequence`, `tenant`, `product`, `provider_account_id`, `issued_from`, `issued_to`). |
 | `GET /v1/admin/issuances/summary` | Cantidades por afiliado, cuenta de proveedor, producto y vigencia, con los mismos filtros. |
+
+### Credencial de servicio y reenvío de avisos del proveedor
+
+El operador configura **solo la credencial de alta**. Con ella la plataforma emite (y renueva) su
+credencial de servicio, de uso frecuente y bajo privilegio:
+
+| Petición (ability `platform.service`) | Qué hace |
+|---|---|
+| `GET /v1/platform/products` | Catálogo completo del gateway (igual a `GET /v1/admin/products`). |
+| `POST /v1/platform/provider-events/{provider}/{account}/{token}` | Reenvío de un aviso del proveedor. |
+
+**El gateway no se expone a internet.** El proveedor avisa a la ruta pública de la plataforma que
+el gateway le da como `callbackUrl` (`GATEWAY_WEBHOOK_URL`, p. ej.
+`https://app.midominio.com/provider-webhooks/{provider}/{account}/{token}`). La plataforma:
+
+1. Recibe el POST sin sesión ni CSRF, limita el tamaño (64 KB) y la frecuencia, y responde `202` al instante.
+2. **No interpreta el cuerpo** ni valida `{token}` (solo lo conoce el gateway).
+3. En un job, reenvía el **cuerpo exacto** a `POST /v1/platform/provider-events/{provider}/{account}/{token}`
+   (los mismos segmentos), firmado con la credencial de servicio. Reintenta si el gateway no responde.
+
+El gateway valida el token y, si coincide, adelanta la reconciliación de esa sesión. El aviso nunca
+cambia un estado por sí mismo; si se pierde, la reconciliación cada 5 minutos lo cubre.
 
 ### Registro de emisiones (para facturar y conciliar)
 
@@ -463,7 +491,8 @@ hash('sha256', base64_decode($certificate['certificate_base64'])) === $certifica
 El gateway hace `POST` a la URL de notificaciones de la credencial:
 
 ```json
-{ "id": "uuid-de-la-notificación", "event": "certificate.ready", "occurred_at": "2026-10-23T10:20:00+00:00",
+{ "id": "uuid-de-la-notificación", "tenant": "external_id del afiliado", "client": "uuid de la credencial",
+  "event": "certificate.ready", "occurred_at": "2026-10-23T10:20:00+00:00",
   "data": { "signature_session_id": "uuid", "status": "CERTIFICATE_STORED", "step": "ISSUANCE", "remaining_liveness_attempts": null } }
 ```
 
@@ -502,6 +531,7 @@ public function __invoke(Request $request)
 | `certificate.issued` | El proveedor emitió el certificado (cualquier producto): quedó en el registro de emisiones con su `sequence`. Una sola vez por solicitud |
 | `certificate.ready` | p12 listo para retirar (HEADLESS) |
 | `session.rejected` | Rechazo definitivo (Registro Civil, intentos agotados, datos) |
+| `session.cancelled` | El gateway la canceló: afiliado suspendido o bloqueado, credencial revocada o emisión detenida (`reason`) |
 | `session.failed` | Fallo de emisión: requiere revisión manual (soporte) |
 | `session.reconciled` | Estado actualizado por la reconciliación (REGULAR sobre todo) |
 | `session.needs_review` | El proveedor emitió pero el certificado no llegó al gateway: incidente |

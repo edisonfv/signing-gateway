@@ -13,12 +13,24 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class EnsureActiveApiClient
 {
+    private const ALLOWED_WHILE_SUSPENDED = [
+        'v1.ping',
+        'v1.signature-sessions.index',
+        'v1.signature-sessions.show',
+        'v1.signature-sessions.certificate.show',
+    ];
+
     public function handle(Request $request, Closure $next): Response
     {
         $client = $request->user();
 
         if (! $client instanceof ApiClient || ! $client->isActive()) {
-            abort(403, 'Credencial revocada o tenant suspendido.');
+            abort(403, 'Credencial revocada o afiliado bloqueado.');
+        }
+
+        // Suspendido (comercial): solo puede consultar y retirar lo que ya se emitió y pagó.
+        if ($client->tenant->isSuspended() && ! ($request->isMethod('GET') && $request->routeIs(...self::ALLOWED_WHILE_SUSPENDED))) {
+            abort(403, 'Afiliado suspendido: solo puede consultar sus solicitudes y retirar certificados ya emitidos.');
         }
 
         if (! $client->allowsIp($request->ip())) {

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Cliente del SaaS. Cada uno tiene sus propias credenciales y topes.
  */
-#[Fillable(['external_id', 'name', 'daily_cap', 'hourly_cap', 'suspended_at'])]
+#[Fillable(['external_id', 'name', 'daily_cap', 'hourly_cap', 'suspended_at', 'blocked_at'])]
 class Tenant extends Model
 {
     use HasUuids;
@@ -23,6 +23,7 @@ class Tenant extends Model
             'daily_cap' => 'integer',
             'hourly_cap' => 'integer',
             'suspended_at' => 'datetime',
+            'blocked_at' => 'datetime',
         ];
     }
 
@@ -42,9 +43,20 @@ class Tenant extends Model
         return $this->hasMany(SignatureRequest::class);
     }
 
+    /**
+     * Suspendido (comercial) o bloqueado: no puede crear ni avanzar solicitudes.
+     */
     public function isSuspended(): bool
     {
-        return $this->suspended_at !== null;
+        return $this->suspended_at !== null || $this->blocked_at !== null;
+    }
+
+    /**
+     * Bloqueado por un incidente: tampoco puede consultar ni retirar lo ya emitido.
+     */
+    public function isBlocked(): bool
+    {
+        return $this->blocked_at !== null;
     }
 
     /**

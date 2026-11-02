@@ -50,6 +50,16 @@ return [
         'token_ttl_days' => (int) env('GATEWAY_CLIENT_TOKEN_TTL_DAYS', 365),
     ],
 
+    'network' => [
+        // IPs o CIDR desde los que se acepta la API (la IP de la plataforma en el túnel), separados por coma.
+        // En producción es obligatoria: sin ella la API rechaza todo, aunque el firewall o nginx fallen.
+        'allowed_sources' => array_values(array_filter(array_map('trim', explode(',', (string) env('GATEWAY_ALLOWED_SOURCES', ''))))),
+
+        // Hosts a los que el gateway puede enviar notificaciones (siempre por HTTPS y sin seguir
+        // redirecciones), separados por coma. En producción es obligatoria.
+        'notification_hosts' => array_values(array_filter(array_map(fn (string $host) => strtolower(trim($host)), explode(',', (string) env('GATEWAY_NOTIFICATION_HOSTS', ''))))),
+    ],
+
     'limits' => [
         // Topes duros por defecto para cada tenant, independientes de los cupos del SaaS.
         'tenant_daily' => (int) env('GATEWAY_TENANT_DAILY_CAP', 50),
@@ -71,8 +81,9 @@ return [
     ],
 
     'webhooks' => [
-        // URL pública del gateway que recibe los webhooks del proveedor (https://gw.midominio.com).
-        // Sin ella no se envía callbackUrl y los cambios llegan solo por la reconciliación.
+        // Ruta pública de REENVÍO en la plataforma (https://app.midominio.com/provider-webhooks): el
+        // proveedor avisa ahí y la plataforma pasa el aviso al gateway por el túnel. El gateway no
+        // queda expuesto a internet. Sin ella no se envía callbackUrl: los cambios llegan por la reconciliación.
         'url' => env('GATEWAY_WEBHOOK_URL'),
     ],
 

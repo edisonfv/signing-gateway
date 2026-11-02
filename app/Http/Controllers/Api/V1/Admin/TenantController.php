@@ -40,6 +40,7 @@ class TenantController extends Controller
             'name' => $tenant->name,
             'products' => array_map(fn (ProductType $product) => $product->value, $tenant->enabledProducts()),
             'suspended' => $tenant->isSuspended(),
+            'blocked' => $tenant->isBlocked(),
         ], $created ? 201 : 200);
     }
 }
