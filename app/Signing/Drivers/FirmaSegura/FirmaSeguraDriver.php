@@ -229,6 +229,7 @@ class FirmaSeguraDriver implements DrivesApiFlow, RegistersRegularRequests, Sign
             'documentType' => 'CI',
             'applicationType' => $isLegalRepresentative ? ApplicationType::legalRepresentative()->value : ApplicationType::naturalPerson()->value,
             'period' => $request->period->value,
+            'termsAndConditionsId' => $request->termsAcceptance->provider_terms_id,
             'identificationFront' => $document(DocumentType::identificationFront()),
             'identificationBack' => $document(DocumentType::identificationBack()),
             'identificationSelfie' => $document(DocumentType::identificationSelfie()),

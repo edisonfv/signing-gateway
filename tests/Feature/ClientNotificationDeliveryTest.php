@@ -79,6 +79,7 @@ class ClientNotificationDeliveryTest extends TestCase
             return Http::response(status: 204);
         });
 
+        config(['gateway.network.notification_ca' => null]);
         ClientNotification::queue($this->client, 'session.advanced', []);
         config(['gateway.network.notification_ca' => 'C:/laragon/etc/ssl/laragon.crt']);
         ClientNotification::queue($this->client, 'session.advanced', []);
