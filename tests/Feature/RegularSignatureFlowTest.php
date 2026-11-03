@@ -73,6 +73,7 @@ class RegularSignatureFlowTest extends TestCase
             && $request['companyRuc'] === '1710034065001'
             && $request['countryCode'] === 'ECU'
             && $request['documentType'] === 'CI'
+            && $request['termsAndConditionsId'] === self::TERMS_ID
             && $request['identificationFront'] === base64_encode($this->png())
             && $request['pdfCompanyRuc'] === base64_encode($this->pdf())
             && ! isset($request['authorizationVideo']));
