@@ -58,6 +58,10 @@ return [
         // Hosts a los que el gateway puede enviar notificaciones (siempre por HTTPS y sin seguir
         // redirecciones), separados por coma. En producción es obligatoria.
         'notification_hosts' => array_values(array_filter(array_map(fn (string $host) => strtolower(trim($host)), explode(',', (string) env('GATEWAY_NOTIFICATION_HOSTS', ''))))),
+
+        // Certificado (o paquete de CA) en el que se confía al notificar, en vez de los del sistema.
+        // Para una CA privada o el certificado autofirmado de un entorno local; nunca se desactiva la verificación.
+        'notification_ca' => env('GATEWAY_NOTIFICATION_CA') ?: null,
     ],
 
     'limits' => [

@@ -70,6 +70,22 @@ class ClientNotificationDeliveryTest extends TestCase
         $this->assertNotNull($notification->fresh()->delivered_at);
     }
 
+    public function test_delivery_trusts_the_configured_certificate_and_never_skips_verification(): void
+    {
+        $verify = [];
+        Http::fake(function (Request $request, array $options) use (&$verify) {
+            $verify[] = $options['verify'] ?? null;
+
+            return Http::response(status: 204);
+        });
+
+        ClientNotification::queue($this->client, 'session.advanced', []);
+        config(['gateway.network.notification_ca' => 'C:/laragon/etc/ssl/laragon.crt']);
+        ClientNotification::queue($this->client, 'session.advanced', []);
+
+        $this->assertSame([true, 'C:/laragon/etc/ssl/laragon.crt'], $verify);
+    }
+
     public function test_failed_delivery_is_not_marked_as_delivered(): void
     {
         Http::fake(['saas.test/*' => Http::response(status: 500)]);

@@ -72,6 +72,7 @@ class DeliverClientNotification implements ShouldBeEncrypted, ShouldBeUnique, Sh
         $response = Http::timeout(15)
             ->connectTimeout(5)
             ->withoutRedirecting()
+            ->when(config('gateway.network.notification_ca'), fn ($http, string $ca) => $http->withOptions(['verify' => $ca]))
             ->withHeaders([
                 'X-Gateway-Timestamp' => $timestamp,
                 'X-Gateway-Signature' => RequestSignature::signNotification($client->notification_secret, $timestamp, $body),
