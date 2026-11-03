@@ -8,8 +8,15 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Env;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
+
+// El .env se carga en $_ENV/$_SERVER de esta petición, nunca con putenv(): en un PHP compartido por
+// varios sitios (Apache mod_php en Laragon) putenv es del proceso entero, y las variables de otra app
+// (p. ej. CACHE_STORE de la plataforma) terminaban en el gateway o al revés. Las variables reales del
+// sistema (systemd, PHP-FPM) se siguen leyendo desde $_SERVER.
+Env::disablePutenv();
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(

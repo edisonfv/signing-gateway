@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\LivenessResultController;
 use App\Http\Controllers\Api\V1\LivenessSessionController;
 use App\Http\Controllers\Api\V1\PairingController;
 use App\Http\Controllers\Api\V1\PingController;
+use App\Http\Controllers\Api\V1\Platform\HealthController;
 use App\Http\Controllers\Api\V1\Platform\ProductController as PlatformProductController;
 use App\Http\Controllers\Api\V1\Platform\ProviderEventController;
 use App\Http\Controllers\Api\V1\ProductController;
@@ -48,6 +49,7 @@ Route::prefix('v1')
         Route::middleware('abilities:'.PermissionName::clientsManage()->value)->prefix('admin')->name('admin.')->group(function () {
             Route::get('products', [AdminProductController::class, 'index'])->name('products.index');
             Route::post('platform-credential', [AdminPlatformCredentialController::class, 'store'])->name('platform-credential.store');
+            Route::post('provisioning-credential', [AdminPlatformCredentialController::class, 'renew'])->name('provisioning-credential.renew');
             Route::put('tenants/{externalId}', [AdminTenantController::class, 'update'])->where('externalId', '[A-Za-z0-9_-]{1,64}')->name('tenants.update');
             Route::get('tenants/{externalId}/products', [AdminTenantProductController::class, 'show'])->where('externalId', '[A-Za-z0-9_-]{1,64}')->name('tenants.products.show');
             Route::put('tenants/{externalId}/products', [AdminTenantProductController::class, 'update'])->where('externalId', '[A-Za-z0-9_-]{1,64}')->name('tenants.products.update');
@@ -68,6 +70,7 @@ Route::prefix('v1')
         // Credencial de servicio de la plataforma: catálogo completo y reenvío de avisos del proveedor.
         Route::middleware('abilities:'.PermissionName::platformService()->value)->prefix('platform')->name('platform.')->group(function () {
             Route::get('products', [PlatformProductController::class, 'index'])->name('products.index');
+            Route::get('health', [HealthController::class, 'show'])->name('health.show');
             Route::post('provider-events/{provider}/{providerAccount}/{token}', [ProviderEventController::class, 'store'])
                 ->where('provider', '[a-z0-9-]{1,30}')
                 ->whereUuid('providerAccount')

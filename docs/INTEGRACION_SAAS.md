@@ -75,6 +75,7 @@ renueva afiliados sin el operador:
 | `POST /v1/admin/tenants/{external_id}/block` | Incidente: como suspender, y revoca todas sus credenciales; no puede hacer nada. |
 | `POST /v1/admin/tenants/{external_id}/resume` | Reactiva (tras un bloqueo hay que emitir credenciales nuevas). |
 | `POST /v1/admin/platform-credential` | Emite la **credencial de servicio** de la plataforma (ability `platform.service`), con las IPs de la de alta. |
+| `POST /v1/admin/provisioning-credential` | **Renueva la credencial de alta** sin volver a emparejar: emite una nueva con las mismas IPs; la anterior sigue viva hasta que la plataforma la revoca con `DELETE /v1/admin/clients/{client}`. |
 | `GET /v1/admin/issuances` | Registro de emisiones: un certificado emitido por fila, en orden de `sequence` (filtros `after_sequence`, `tenant`, `product`, `provider_account_id`, `issued_from`, `issued_to`). |
 | `GET /v1/admin/issuances/summary` | Cantidades por afiliado, cuenta de proveedor, producto y vigencia, con los mismos filtros. |
 
@@ -86,6 +87,7 @@ El operador solo genera el código de emparejamiento. Con la credencial de alta 
 | Petición (ability `platform.service`) | Qué hace |
 |---|---|
 | `GET /v1/platform/products` | Catálogo completo del gateway (igual a `GET /v1/admin/products`). |
+| `GET /v1/platform/health` | Estado de salud para el monitor: `status` (`ok`, `degraded`, `down`) y `checks[]` con `key`, `label`, `status`, `detail` y `hint`. |
 | `POST /v1/platform/provider-events/{provider}/{account}/{token}` | Reenvío de un aviso del proveedor. |
 
 **El gateway no se expone a internet.** El proveedor avisa a la ruta pública de la plataforma que

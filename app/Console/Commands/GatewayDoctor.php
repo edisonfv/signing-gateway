@@ -5,10 +5,12 @@ namespace App\Console\Commands;
 use App\Enums\Environment;
 use App\Models\ApiClient;
 use App\Models\City;
+use App\Models\PersonalAccessToken;
 use App\Models\ProviderAccount;
 use App\Security\KeyRing;
 use App\Signing\Contracts\DrivesApiFlow;
 use App\Signing\EmissionGuard;
+use App\Signing\Health\GatewayHealth;
 use App\Signing\Ledger\IssuanceLedger;
 use App\Signing\SignatureProviderManager;
 use Illuminate\Console\Attributes\Description;
@@ -22,12 +24,15 @@ use Throwable;
 #[Description('Verifica que el gateway esté bien instalado: llaves, base, proveedor, emparejamiento y red')]
 class GatewayDoctor extends Command
 {
+    /** Días antes del vencimiento de la credencial de alta en que se avisa. */
+    private const RENEW_WARNING_DAYS = 30;
+
     /** @var array<int, array{0: string, 1: string, 2: string}> */
     private array $rows = [];
 
     private bool $failed = false;
 
-    public function handle(KeyRing $keys, SignatureProviderManager $providers, IssuanceLedger $ledger, EmissionGuard $guard): int
+    public function handle(KeyRing $keys, SignatureProviderManager $providers, IssuanceLedger $ledger, EmissionGuard $guard, GatewayHealth $health): int
     {
         $this->checkKeys($keys);
         $this->checkDatabase();
@@ -35,6 +40,7 @@ class GatewayDoctor extends Command
         $this->checkPlatform();
         $this->checkProductionConfig();
         $this->check('Emisión', ! $guard->isHalted(), 'activa', 'DETENIDA (gateway:halt --off para reanudar)', fatal: false);
+        $this->checkOperations($health);
 
         try {
             $problem = $ledger->verify();
@@ -124,14 +130,46 @@ class GatewayDoctor extends Command
 
     private function checkPlatform(): void
     {
-        $paired = ApiClient::query()
-            ->whereNull('tenant_id')
-            ->whereNull('revoked_at')
-            ->whereHas('tokens', fn ($query) => $query->where('abilities', 'like', '%clients.manage%')
-                ->where(fn ($expiry) => $expiry->whereNull('expires_at')->orWhere('expires_at', '>', now())))
-            ->exists();
+        // La credencial de alta vigente que vence más tarde (durante una renovación conviven dos).
+        $token = PersonalAccessToken::query()
+            ->whereHasMorph('tokenable', [ApiClient::class], fn ($client) => $client->whereNull('tenant_id')->whereNull('revoked_at'))
+            ->where('abilities', 'like', '%clients.manage%')
+            ->where(fn ($expiry) => $expiry->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->orderByRaw('expires_at IS NULL DESC')
+            ->orderByDesc('expires_at')
+            ->first();
 
-        $this->check('Plataforma', $paired, 'emparejada', 'sin emparejar (php artisan gateway:pair)', fatal: false);
+        if ($token === null) {
+            $this->check('Plataforma', false, '', 'sin emparejar o con la credencial de alta vencida (php artisan gateway:pair)', fatal: false);
+
+            return;
+        }
+
+        $expiresAt = $token->expires_at;
+        $this->check(
+            'Plataforma',
+            $expiresAt === null || $expiresAt->gte(now()->addDays(self::RENEW_WARNING_DAYS)),
+            'emparejada'.($expiresAt ? '; su credencial de alta vence el '.$expiresAt->toDateString() : ''),
+            "su credencial de alta vence el {$expiresAt?->toDateString()}: la plataforma debe renovarla (POST /v1/admin/provisioning-credential) o vuelva a emparejar",
+            fatal: false,
+        );
+    }
+
+    /**
+     * Lo mismo que ve el monitor de la plataforma: scheduler, colas, jobs fallidos, notificaciones y
+     * reconciliación. Solo avisos: recién instalado, los workers aún pueden no estar corriendo.
+     */
+    private function checkOperations(GatewayHealth $health): void
+    {
+        $operational = ['scheduler', 'queue:', 'failed-jobs', 'notifications', 'reconcile', 'tracking-budget:'];
+
+        foreach ($health->report()['checks'] as $check) {
+            if (! collect($operational)->contains(fn (string $prefix) => str_starts_with($check['key'], $prefix))) {
+                continue;
+            }
+
+            $this->check($check['label'], $check['status'] === 'ok', $check['detail'], trim($check['detail'].'. '.$check['hint']), fatal: false);
+        }
     }
 
     private function checkProductionConfig(): void

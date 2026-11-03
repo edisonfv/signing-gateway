@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\AuditLog;
+use App\Models\Heartbeat;
 use App\Models\IssuanceLedgerEntry;
 use App\Signing\Ledger\IssuanceLedger;
 use Illuminate\Console\Attributes\Description;
@@ -17,6 +18,7 @@ class VerifyIssuanceLedger extends Command
     public function handle(IssuanceLedger $ledger): int
     {
         $problem = $ledger->verify();
+        Heartbeat::beat('ledger-verify', ['ok' => $problem === null, ...($problem ?? [])]);
 
         if ($problem !== null) {
             AuditLog::record('issuance_ledger.tampered', context: $problem, ip: 'cli');

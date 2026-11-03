@@ -31,9 +31,15 @@ Emparejar otra vez (otro servidor, rotación o credencial perdida) repite estos 
 se tocan, sus credenciales siguen igual.
 
 - Quitar de la pantalla los campos de token y secreto de catálogo y de alta (ya no se escriben a mano).
-- Renovación: en `gateway:renew-credentials`, si la de servicio vence en menos de
-  `gateway.renew_days_before` días, emitir una nueva, guardarla, probarla y revocar la anterior
-  (el mismo patrón que `GatewayProvisioning::connect`).
+- Renovación en `gateway:renew-credentials` (diario), con el mismo patrón que `GatewayProvisioning::connect`
+  (emitir → guardar → probar con `GET /v1/ping` → revocar la anterior con `DELETE /v1/admin/clients/{client}`),
+  cuando falten menos de `gateway.renew_days_before` días para su `token_expires_at`:
+  - **credencial de alta:** `POST /v1/admin/provisioning-credential` (con la de alta vigente). Si se deja
+    vencer, ya no se puede renovar: hay que volver a emparejar con un código.
+  - **credencial de servicio:** `POST /v1/admin/platform-credential`.
+
+  Si la renovación falla, avisar al staff cada día (como hoy con los afiliados). `php artisan gateway:doctor`
+  también avisa en el gateway cuando a la credencial de alta le quedan menos de 30 días.
 
 ## 2. Catálogo con la credencial de servicio
 
@@ -125,7 +131,38 @@ En `GatewayProvisioning::connect()`:
   `PUT /v1/admin/tenants/{id}/products` (la lista simple de `PUT /v1/admin/tenants/{id}` sigue funcionando).
 - **Guiar el flujo con `next_action`** y pedir los términos con `GET /v1/terms/current?product=…`.
 
-## 8. Variables nuevas del gateway (producción)
+## 8. Monitor del gateway y alertas por correo
+
+El gateway no tiene interfaz: su estado se ve en la plataforma.
+
+**Comando `gateway:monitor`** (scheduler de la plataforma, cada minuto, `withoutOverlapping`):
+
+1. `GET /v1/platform/health` con la **credencial de servicio**, timeout de 10 s. Respuesta:
+   ```json
+   { "status": "degraded", "checked_at": "…",
+     "checks": [ { "key": "queue:interactive", "label": "Cola interactive", "status": "warn",
+                   "detail": "Atrasada: 12 en espera, la más antigua hace 95 s",
+                   "hint": "Hay más trabajo que workers: agregue un worker para esta cola." } ] }
+   ```
+2. Si no responde (timeout, conexión, 5xx o 401/403), registrar un estado sintético `down` con la
+   comprobación `gateway` «El gateway no responde» y el error. **Eso también es una caída.**
+3. Guardar el último resultado (tabla central `gateway_health_checks`: `key`, `label`, `status`,
+   `detail`, `hint`, `since`, `failures_in_a_row`, `alerted_at`).
+
+**Alertas por correo** al staff con permiso de administrar afiliados (o a `GATEWAY_ALERT_EMAILS`):
+
+- Avisar cuando una comprobación pasa a `fail` **dos minutos seguidos** (evita falsas alarmas por un
+  reinicio), y cuando pasa a `warn` durante **10 minutos**.
+- Mientras siga mal, recordar **una vez por hora**, no cada minuto.
+- Avisar también cuando **se recupera** («Resuelto: Cola interactive»).
+- El correo lleva el `label`, el `detail`, el `hint`, desde cuándo y el enlace a la pantalla de estado.
+- Usar una cola distinta de la que envía al gateway, para que el aviso salga aunque esa esté atascada.
+
+**Pantalla «Estado del gateway»** (staff): estado general con color, hora de la última consulta y una
+fila por comprobación (`label`, estado, `detail`, `hint`, desde cuándo). Un indicador pequeño en la
+barra superior del staff (verde, amarillo o rojo) con enlace a esta pantalla.
+
+## 9. Variables nuevas del gateway (producción)
 
 | Variable | Valor |
 |---|---|
@@ -138,8 +175,9 @@ plataforma (túnel), DNS, NTP y actualizaciones. Ya no hace falta abrir el 443 a
 
 ## Orden sugerido
 
-1. Puntos 3 y 4 (reenvío y URL central), porque cambian la red. Desplegarlos junto con las variables del punto 8.
-2. Puntos 1 y 2 (credencial de servicio).
-3. Punto 5 (idempotencia).
-4. Punto 6 (suspensión).
-5. Punto 7.
+1. Puntos 3 y 4 (reenvío y URL central), porque cambian la red. Desplegarlos junto con las variables del punto 9.
+2. Puntos 1 y 2 (emparejamiento y credencial de servicio).
+3. Punto 8 (monitor y alertas): en cuanto exista la credencial de servicio, para ver el gateway desde el primer día.
+4. Punto 5 (idempotencia).
+5. Punto 6 (suspensión).
+6. Punto 7.

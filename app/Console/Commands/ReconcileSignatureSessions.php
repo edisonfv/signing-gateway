@@ -6,6 +6,7 @@ use App\Enums\RequestStatus;
 use App\Enums\SessionStep;
 use App\Enums\SignatureFlow;
 use App\Jobs\ReconcileSignatureSession;
+use App\Models\Heartbeat;
 use App\Models\ProviderAccount;
 use App\Models\SignatureRequest;
 use App\Signing\ApiFlow\TrackingBudget;
@@ -43,6 +44,7 @@ class ReconcileSignatureSessions extends Command
             $total += $candidates->count();
         }
 
+        Heartbeat::beat('reconcile', ['queued' => $total]);
         $this->components->info("Solicitudes encoladas para reconciliar: {$total}.");
 
         return self::SUCCESS;
