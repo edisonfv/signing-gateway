@@ -837,7 +837,9 @@ Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `Transf
   del aviso es un HMAC del id de la cuenta con la llave de índices ciegos (ya no con `APP_KEY`).
 - **Red en la aplicación.** `RestrictSourceNetwork` rechaza orígenes fuera de `GATEWAY_ALLOWED_SOURCES`;
   en producción, sin lista, rechaza todo. Las notificaciones solo van por HTTPS a hosts de
-  `GATEWAY_NOTIFICATION_HOSTS` y sin seguir redirecciones (evita SSRF desde el gateway).
+  `GATEWAY_NOTIFICATION_HOSTS` y sin seguir redirecciones (evita SSRF desde el gateway). Con una CA
+  privada (o el certificado autofirmado de un entorno local), `GATEWAY_NOTIFICATION_CA` indica en qué
+  certificado confiar en vez de los del sistema; nunca se desactiva la verificación.
 - **Credencial de servicio** (`platform.service`): catálogo completo y reenvío de avisos; la emite la
   plataforma con su credencial de alta (`POST /v1/admin/platform-credential`).
 - **Suspender / bloquear / reactivar** un afiliado (`/v1/admin/tenants/{id}/suspend|block|resume`, o
