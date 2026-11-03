@@ -10,6 +10,7 @@ use App\Models\ProviderAccount;
 use App\Security\KeyRing;
 use App\Signing\Contracts\DrivesApiFlow;
 use App\Signing\EmissionGuard;
+use App\Signing\Health\GatewayHealth;
 use App\Signing\Ledger\IssuanceLedger;
 use App\Signing\SignatureProviderManager;
 use Illuminate\Console\Attributes\Description;
@@ -31,7 +32,7 @@ class GatewayDoctor extends Command
 
     private bool $failed = false;
 
-    public function handle(KeyRing $keys, SignatureProviderManager $providers, IssuanceLedger $ledger, EmissionGuard $guard): int
+    public function handle(KeyRing $keys, SignatureProviderManager $providers, IssuanceLedger $ledger, EmissionGuard $guard, GatewayHealth $health): int
     {
         $this->checkKeys($keys);
         $this->checkDatabase();
@@ -39,6 +40,7 @@ class GatewayDoctor extends Command
         $this->checkPlatform();
         $this->checkProductionConfig();
         $this->check('Emisión', ! $guard->isHalted(), 'activa', 'DETENIDA (gateway:halt --off para reanudar)', fatal: false);
+        $this->checkOperations($health);
 
         try {
             $problem = $ledger->verify();
@@ -151,6 +153,23 @@ class GatewayDoctor extends Command
             "su credencial de alta vence el {$expiresAt?->toDateString()}: la plataforma debe renovarla (POST /v1/admin/provisioning-credential) o vuelva a emparejar",
             fatal: false,
         );
+    }
+
+    /**
+     * Lo mismo que ve el monitor de la plataforma: scheduler, colas, jobs fallidos, notificaciones y
+     * reconciliación. Solo avisos: recién instalado, los workers aún pueden no estar corriendo.
+     */
+    private function checkOperations(GatewayHealth $health): void
+    {
+        $operational = ['scheduler', 'queue:', 'failed-jobs', 'notifications', 'reconcile', 'tracking-budget:'];
+
+        foreach ($health->report()['checks'] as $check) {
+            if (! collect($operational)->contains(fn (string $prefix) => str_starts_with($check['key'], $prefix))) {
+                continue;
+            }
+
+            $this->check($check['label'], $check['status'] === 'ok', $check['detail'], trim($check['detail'].'. '.$check['hint']), fatal: false);
+        }
     }
 
     private function checkProductionConfig(): void

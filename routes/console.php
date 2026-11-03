@@ -15,6 +15,9 @@ Schedule::command('model:prune', ['--model' => [CertificateVaultEntry::class, Si
     ->onOneServer()
     ->withoutOverlapping(10);
 
+// Señal de vida del scheduler y de cada cola, para el monitor de salud (GET /v1/platform/health).
+Schedule::command('gateway:heartbeat')->everyMinute()->onOneServer();
+
 // Reconciliación con el tracking del proveedor cada 5 minutos: respaldo de los webhooks,
 // que pueden no llegar (o no configurarse, como en local).
 Schedule::command('gateway:reconcile-sessions')

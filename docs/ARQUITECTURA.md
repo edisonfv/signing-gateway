@@ -872,3 +872,23 @@ Las validaciones usan `new EnumRule(City::class)`; los FormRequests usan `Transf
 - **Renovación de la credencial de alta.** `POST /v1/admin/provisioning-credential` emite una nueva (mismas
   IPs) sin volver a emparejar; la plataforma la guarda, la prueba y revoca la anterior. `gateway:doctor`
   avisa cuando faltan menos de 30 días; si se deja vencer, solo queda volver a emparejar.
+
+---
+
+## 19. Monitor de salud 2026-11-03
+
+El gateway no tiene interfaz: la plataforma consulta `GET /v1/platform/health` cada minuto (credencial de
+servicio), lo muestra en su pantalla de staff y avisa por correo. Es la plataforma la que pregunta: si
+los workers del gateway se caen, sus avisos también, y una consulta sin respuesta ya es una caída.
+
+- **Latidos** (tabla `heartbeats`, no la caché, para sobrevivir a `cache:clear`): `gateway:heartbeat`
+  corre cada minuto, anota al scheduler y encola `QueueHeartbeat` en `interactive`, `default` y
+  `notifications`; si un worker lo procesa, esa cola está viva. La reconciliación y la verificación
+  diaria del registro de emisiones anotan su última ejecución. `RecordProviderCall` escucha los eventos
+  del cliente HTTP y anota la última respuesta correcta y el último error de cada cuenta de proveedor
+  (sin cuerpos).
+- **`GatewayHealth`**: scheduler y colas (caídos tras 3 minutos sin señal; `interactive` atrasada desde
+  60 s), jobs fallidos (falla si hay de `interactive` en la última hora), notificaciones fallidas o
+  atascadas, proveedor y su cupo de consultas (aviso desde el 80 %), reconciliación (falla tras 15
+  minutos), freno de emisión, credencial de alta (aviso a 30 días) y registro de emisiones.
+  `gateway:doctor` muestra los indicadores operativos como avisos.

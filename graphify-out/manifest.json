@@ -150,8 +150,8 @@
     "semantic_hash": "105de8a619f5cc0cc2701bca22ffebff"
   },
   "app/Jobs/DeliverClientNotification.php": {
-    "mtime": 1793640254.346084,
-    "ast_hash": "c2054a760f181d8c8af79173aa745b7c",
+    "mtime": 1793724134.3422382,
+    "ast_hash": "d011e9ff194ddbe90d035f8072e2ed09",
     "semantic_hash": ""
   },
   "app/Logging/MaskSensitiveData.php": {
@@ -395,8 +395,8 @@
     "semantic_hash": "e66bb13691f6184c762c196427d8e685"
   },
   "bootstrap/app.php": {
-    "mtime": 1793633917.4951868,
-    "ast_hash": "a25387e93af20008452cf7a838312fd3",
+    "mtime": 1793643410.8499033,
+    "ast_hash": "ecb3dd4179e5a8d1689296f9e949376e",
     "semantic_hash": ""
   },
   "bootstrap/providers.php": {
@@ -435,8 +435,8 @@
     "semantic_hash": ""
   },
   "config/gateway.php": {
-    "mtime": 1793633917.4951868,
-    "ast_hash": "59da406cd92b25df997237d8587e371a",
+    "mtime": 1793724134.3432357,
+    "ast_hash": "ff2ba4fe02c979d525ca7b57044f86b0",
     "semantic_hash": ""
   },
   "config/logging.php": {
@@ -570,13 +570,13 @@
     "semantic_hash": "1a03818ea91deb4f3989c6c994e5867c"
   },
   "routes/api.php": {
-    "mtime": 1793640962.8449297,
-    "ast_hash": "bd3e602d72d13616c2fd9b367a7d2e92",
+    "mtime": 1793724267.9833627,
+    "ast_hash": "21b37e3739f76f3c2ffb5ba9c8b7d94a",
     "semantic_hash": ""
   },
   "routes/console.php": {
-    "mtime": 1793600196.8578491,
-    "ast_hash": "cbe64f99f65c8469699c49b9d3a7b2d1",
+    "mtime": 1793724187.5453434,
+    "ast_hash": "1726a09d3da526edb4eb2b50e40d3c3b",
     "semantic_hash": ""
   },
   "routes/web.php": {
@@ -595,8 +595,8 @@
     "semantic_hash": ""
   },
   "tests/Feature/ClientNotificationDeliveryTest.php": {
-    "mtime": 1793633917.503278,
-    "ast_hash": "7811206f04b484ed4e3610dd006dd202",
+    "mtime": 1793724134.3454092,
+    "ast_hash": "2ed9aae7431c72d350f10cb68a2dcbc9",
     "semantic_hash": ""
   },
   "tests/Feature/DataProtectionTest.php": {
@@ -640,8 +640,8 @@
     "semantic_hash": ""
   },
   "docs/ARQUITECTURA.md": {
-    "mtime": 1793641041.5631545,
-    "ast_hash": "0b2c6c17edc8ab60c44e506be252f293",
+    "mtime": 1793724398.3078048,
+    "ast_hash": "c1bd9af45ddd0d861df7c4296619db63",
     "semantic_hash": ""
   },
   "app/Actions/CreateSignatureSession.php": {
@@ -830,8 +830,8 @@
     "semantic_hash": ""
   },
   "app/Console/Commands/ReconcileSignatureSessions.php": {
-    "mtime": 1793599580.7553937,
-    "ast_hash": "ba46ea27f7534c0b5bb5d7e321f8f8f2",
+    "mtime": 1793724187.5042887,
+    "ast_hash": "223aee96f597375b08b85ce2567e9447",
     "semantic_hash": ""
   },
   "app/Exceptions/TrackingBudgetExhaustedException.php": {
@@ -985,8 +985,8 @@
     "semantic_hash": ""
   },
   "docs/INTEGRACION_SAAS.md": {
-    "mtime": 1793641041.0628881,
-    "ast_hash": "5b7076942b4f479a5c7e76b0824c7ae9",
+    "mtime": 1793724381.6034296,
+    "ast_hash": "c672737bb96910398f06d9fba1798ffd",
     "semantic_hash": ""
   },
   "app/Console/Commands/PurgeApplicantData.php": {
@@ -1060,8 +1060,8 @@
     "semantic_hash": ""
   },
   "app/Console/Commands/VerifyIssuanceLedger.php": {
-    "mtime": 1793600196.8482132,
-    "ast_hash": "01dbc1ea8b1c18348b61ca336f326f1e",
+    "mtime": 1793724181.1774385,
+    "ast_hash": "1949e339c7bc68989640775ac51f6678",
     "semantic_hash": ""
   },
   "app/Http/Controllers/Api/V1/Admin/IssuanceController.php": {
@@ -1195,8 +1195,8 @@
     "semantic_hash": ""
   },
   "docs/INSTRUCCIONES_PLATAFORMA.md": {
-    "mtime": 1793641041.0919564,
-    "ast_hash": "ba5f71b7f7ac646f4cba1fcbef8bee56",
+    "mtime": 1793724397.366117,
+    "ast_hash": "7b5eede93e7614bbc4d5af15d47bbc5e",
     "semantic_hash": ""
   },
   "app/Actions/PairPlatform.php": {
@@ -1205,8 +1205,8 @@
     "semantic_hash": ""
   },
   "app/Console/Commands/GatewayDoctor.php": {
-    "mtime": 1793640995.247835,
-    "ast_hash": "d1b10be65016a07ddbd6ebbbe4d7c243",
+    "mtime": 1793724282.6931553,
+    "ast_hash": "f1f11feceb2994b45a35ceddf6a3615f",
     "semantic_hash": ""
   },
   "app/Console/Commands/InstallGateway.php": {
@@ -1247,6 +1247,51 @@
   "tests/Feature/PlatformPairingTest.php": {
     "mtime": 1793641009.8332386,
     "ast_hash": "e848e537389a762777c3e6088d06bff8",
+    "semantic_hash": ""
+  },
+  "app/Console/Commands/RecordHeartbeat.php": {
+    "mtime": 1793724173.7455416,
+    "ast_hash": "5e99980477a2542ba7744407652a45ec",
+    "semantic_hash": ""
+  },
+  "app/Http/Controllers/Api/V1/Platform/HealthController.php": {
+    "mtime": 1793724267.7749155,
+    "ast_hash": "f99ec77603c6cf4b3e29a0892fb456dd",
+    "semantic_hash": ""
+  },
+  "app/Jobs/QueueHeartbeat.php": {
+    "mtime": 1793724173.6731958,
+    "ast_hash": "586fc543915b8c02df514fb586c4484a",
+    "semantic_hash": ""
+  },
+  "app/Listeners/RecordProviderCall.php": {
+    "mtime": 1793724205.693215,
+    "ast_hash": "560717b935888841ef2a7f2aa47d6e6d",
+    "semantic_hash": ""
+  },
+  "app/Models/Heartbeat.php": {
+    "mtime": 1793724173.6096277,
+    "ast_hash": "1069562eac939dc65d49e9855c6da8dc",
+    "semantic_hash": ""
+  },
+  "app/Signing/Health/GatewayHealth.php": {
+    "mtime": 1793724252.6323953,
+    "ast_hash": "449b6c5c4933c69b71b6fdf5117669dc",
+    "semantic_hash": ""
+  },
+  "database/migrations/2026_11_03_164234_create_heartbeats_table.php": {
+    "mtime": 1793724173.5169537,
+    "ast_hash": "f5b92516275b48e7c654a9907261ab90",
+    "semantic_hash": ""
+  },
+  "tests/Feature/EnvironmentIsolationTest.php": {
+    "mtime": 1793643407.200351,
+    "ast_hash": "a727d791b3beb1b2b2b06680a87f0cd7",
+    "semantic_hash": ""
+  },
+  "tests/Feature/GatewayHealthTest.php": {
+    "mtime": 1793724303.1835105,
+    "ast_hash": "b8270f878b29c23d4cde94526263fe60",
     "semantic_hash": ""
   }
 }

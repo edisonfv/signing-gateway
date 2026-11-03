@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\LivenessResultController;
 use App\Http\Controllers\Api\V1\LivenessSessionController;
 use App\Http\Controllers\Api\V1\PairingController;
 use App\Http\Controllers\Api\V1\PingController;
+use App\Http\Controllers\Api\V1\Platform\HealthController;
 use App\Http\Controllers\Api\V1\Platform\ProductController as PlatformProductController;
 use App\Http\Controllers\Api\V1\Platform\ProviderEventController;
 use App\Http\Controllers\Api\V1\ProductController;
@@ -69,6 +70,7 @@ Route::prefix('v1')
         // Credencial de servicio de la plataforma: catálogo completo y reenvío de avisos del proveedor.
         Route::middleware('abilities:'.PermissionName::platformService()->value)->prefix('platform')->name('platform.')->group(function () {
             Route::get('products', [PlatformProductController::class, 'index'])->name('products.index');
+            Route::get('health', [HealthController::class, 'show'])->name('health.show');
             Route::post('provider-events/{provider}/{providerAccount}/{token}', [ProviderEventController::class, 'store'])
                 ->where('provider', '[a-z0-9-]{1,30}')
                 ->whereUuid('providerAccount')
