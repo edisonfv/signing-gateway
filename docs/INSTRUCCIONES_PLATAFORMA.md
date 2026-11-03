@@ -131,11 +131,32 @@ En `GatewayProvisioning::connect()`:
   `PUT /v1/admin/tenants/{id}/products` (la lista simple de `PUT /v1/admin/tenants/{id}` sigue funcionando).
 - **Guiar el flujo con `next_action`** y pedir los términos con `GET /v1/terms/current?product=…`.
 
-## 8. Monitor del gateway y alertas por correo
+## 8. Monitor del gateway: pantalla y alertas por correo
 
-El gateway no tiene interfaz: su estado se ve en la plataforma.
+El gateway no tiene interfaz: su estado se ve en la plataforma. Seguir la sección «Interfaz y diseño» de
+`CLAUDE.md` y copiar el estilo de `/kit`.
 
-**Comando `gateway:monitor`** (scheduler de la plataforma, cada minuto, `withoutOverlapping`):
+### 8.1 Dónde vive y quién lo ve
+
+- Permiso nuevo en `Modules/Gateway/app/Enums/Permission.php` (el módulo aún no tiene enum):
+  `HealthView = 'gateway.health.view'`, `label()` «Ver el estado del gateway». Luego `permissions:sync`.
+- Destino propio en el sidebar central, grupo «Backoffice», debajo de «Operación»: «Estado del gateway»,
+  icono `shield`, `permission: 'gateway.health.view'`.
+- Ruta `GET /central/gateway/health` (`central.gateway-health.show`); página
+  `Modules/Gateway/resources/js/Pages/Staff/Health.vue` con
+  `defineOptions({ layout: { title: 'Estado del gateway' } })`.
+- Los correos van a los usuarios centrales con `gateway.health.view`.
+
+### 8.2 Datos y comando `gateway:monitor`
+
+Tablas centrales:
+
+| Tabla | Campos |
+|---|---|
+| `gateway_health_checks` (estado actual) | `key` (PK), `label`, `status` (`ok`/`warn`/`fail`), `detail`, `hint`, `since`, `failures_in_a_row`, `alerted_at`, `checked_at` |
+| `gateway_health_incidents` (historial) | `key`, `label`, `status`, `detail`, `started_at`, `resolved_at` |
+
+`gateway:monitor` (scheduler de la plataforma, cada minuto, `withoutOverlapping`):
 
 1. `GET /v1/platform/health` con la **credencial de servicio**, timeout de 10 s. Respuesta:
    ```json
@@ -144,23 +165,77 @@ El gateway no tiene interfaz: su estado se ve en la plataforma.
                    "detail": "Atrasada: 12 en espera, la más antigua hace 95 s",
                    "hint": "Hay más trabajo que workers: agregue un worker para esta cola." } ] }
    ```
-2. Si no responde (timeout, conexión, 5xx o 401/403), registrar un estado sintético `down` con la
-   comprobación `gateway` «El gateway no responde» y el error. **Eso también es una caída.**
-3. Guardar el último resultado (tabla central `gateway_health_checks`: `key`, `label`, `status`,
-   `detail`, `hint`, `since`, `failures_in_a_row`, `alerted_at`).
+2. Si no responde (timeout, conexión, `5xx`, `401`/`403`), registrar la comprobación sintética
+   `gateway` «El emisor de firmas no responde» en `fail`. **Eso también es una caída.**
+3. Actualizar `gateway_health_checks`: al cambiar de estado, guardar `since`; al pasar a `warn` o `fail`,
+   abrir un incidente; al volver a `ok`, cerrarlo (`resolved_at`).
+4. Decidir las alertas (8.4).
 
-**Alertas por correo** al staff con permiso de administrar afiliados (o a `GATEWAY_ALERT_EMAILS`):
+- `POST /central/gateway/health/check` («Consultar ahora», throttle 6/min): despacha el monitor y devuelve un toast.
+- Prop compartida `gatewayHealth: { status, checked_at }` solo para quien tiene el permiso, diferida y leída
+  de la tabla (nunca llama al gateway en cada página).
 
-- Avisar cuando una comprobación pasa a `fail` **dos minutos seguidos** (evita falsas alarmas por un
-  reinicio), y cuando pasa a `warn` durante **10 minutos**.
-- Mientras siga mal, recordar **una vez por hora**, no cada minuto.
-- Avisar también cuando **se recupera** («Resuelto: Cola interactive»).
-- El correo lleva el `label`, el `detail`, el `hint`, desde cuándo y el enlace a la pantalla de estado.
-- Usar una cola distinta de la que envía al gateway, para que el aviso salga aunque esa esté atascada.
+### 8.3 Pantalla «Estado del gateway»
 
-**Pantalla «Estado del gateway»** (staff): estado general con color, hora de la última consulta y una
-fila por comprobación (`label`, estado, `detail`, `hint`, desde cuándo). Un indicador pequeño en la
-barra superior del staff (verde, amarillo o rojo) con enlace a esta pantalla.
+Una sola vista sin scroll en 1440×900, dos columnas (`xl:col-span-8` + `xl:col-span-4`); en móvil, la
+tarjeta de acción primero.
+
+- **Encabezado** `<Heading variant="compact">`: «Revisa si el emisor de firmas está funcionando. Se
+  actualiza cada minuto.» A la derecha, `RefreshButton :only="['health']" :seconds="30"` y el botón
+  secundario «Consultar ahora».
+- **Aviso de una línea** según el estado:
+
+  | Estado | Color | Texto |
+  |---|---|---|
+  | `ok` | verde | «Todo funciona. Consultado hace 40 s.» |
+  | `degraded` | ámbar | «Funciona con 2 avisos.» |
+  | `down` | rojo | «Hay 1 falla: la emisión de firmas puede estar afectada.» |
+  | `checked_at` de hace más de 3 min | gris | «Sin datos recientes: el monitor de la plataforma no se está ejecutando.» |
+
+  El último caso evita que la pantalla siga en verde si se cae el propio monitor.
+- **KPIs** (`StatCard`, 4 columnas): Estado general · Fallas · Avisos · Última consulta.
+- **Izquierda**, `Card` con pestañas «Con problemas N · Todas M · Incidentes» (abre en «Con problemas» si
+  hay alguno, si no en «Todas»):
+  - Tabla (cabecera `bg-ink-50 uppercase text-xs`, filas `py-2.5`): Comprobación (`label`), Estado
+    (`Badge` con `healthStatusTone()`: `ok`→`green` «Bien», `warn`→`amber` «Aviso», `fail`→`red` «Falla»),
+    Detalle, Desde (`useDateTime`). En las filas que no están bien, el `hint` debajo del detalle con `ui.help`.
+  - Grupos con un separador ligero: «Procesos» (scheduler, colas, jobs fallidos, reconciliación),
+    «Proveedor» (FirmaSegura y su cupo de consultas), «Avisos y seguridad» (notificaciones, emisión,
+    credencial de alta, registro de emisiones). Dentro de cada grupo: fallas, avisos y lo que está bien.
+  - «Incidentes»: listado paginado (`Pagination`) con comprobación, estado, inicio, fin y duración;
+    filtro «Abiertos · Todos».
+- **Derecha**, tarjeta «Qué hacer ahora» (`xl:sticky`, pie `border-t bg-ink-50`): cada problema con su
+  `label` y su `hint`, primero las fallas; si todo está bien, «No hay nada que hacer.» Debajo, «Alertas
+  por correo: se avisa a N personas con permiso para ver el estado del gateway» y el botón secundario
+  «Enviar correo de prueba».
+- **Estado vacío** (sin credencial de servicio): aviso ámbar «Para ver el estado del gateway, emparéjalo
+  primero» con «Hacerlo ahora →» hacia la ficha del proveedor (Catálogo › Proveedores).
+- **Barra superior** (`AppShell`, solo con el permiso): punto verde, ámbar o rojo con `title` y
+  `aria-label` («Estado del gateway: con fallas») que enlaza a la pantalla.
+- Textos simples, sin jerga: «El emisor de firmas no responde», no «gateway down». Los `label`, `detail` y
+  `hint` ya llegan en español: mostrarlos tal cual.
+- Solo tokens del tema (`emerald`, `amber`, `red` solo para estados), variante `dark:` en todo, iconos con
+  `<Icon>`, verificar a 375 px sin scroll horizontal.
+
+### 8.4 Alertas por correo y campana
+
+Notificación `GatewayHealthAlert`, `via(): ['mail', 'database']`; `toArray()` con `title`, `body` y `url`
+absoluta a la pantalla.
+
+- Asunto: `[Gateway] Falla: Cola interactive`, `[Gateway] Aviso: …` o `[Gateway] Resuelto: …`.
+- Contenido: `label`, `detail`, `hint`, desde cuándo y el botón «Ver estado del gateway».
+- Reglas: `fail` dos consultas seguidas → avisar; `warn` durante 10 minutos → avisar; mientras siga mal,
+  un recordatorio por hora (`alerted_at`); al volver a `ok`, «Resuelto» solo si antes se avisó.
+- Enviar por una cola distinta de la que llama al gateway, para que el aviso salga aunque esa esté atascada.
+
+### 8.5 Tests
+
+- La pantalla responde `403` sin `gateway.health.view`.
+- El monitor (con `Http::fake`) guarda las comprobaciones y abre y cierra incidentes; sin respuesta del
+  gateway, marca `down`.
+- Alertas con `Notification::fake`: una sola al segundo `fail`, el recordatorio a la hora y «Resuelto» al
+  recuperarse.
+- El aviso «Sin datos recientes» aparece cuando la última consulta tiene más de 3 minutos.
 
 ## 9. Variables nuevas del gateway (producción)
 
