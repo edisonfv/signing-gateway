@@ -11,8 +11,10 @@ use Illuminate\Support\Facades\File;
 /**
  * Genera las llaves de la bóveda y del índice ciego. Solo escribe las que falten en .env,
  * salvo --force. En producción usar --show y cargarlas como secretos del servidor.
+ * En producción --force está prohibido: una llave reemplazada deja ilegibles los datos
+ * cifrados con ella. Para rotarlas se usan las variables *_PREVIOUS_KEYS.
  */
-#[Signature('gateway:keys:generate {--show : Mostrar las llaves en lugar de escribirlas en .env} {--force : Reemplazar llaves existentes (los datos cifrados con ellas quedarán ilegibles)}')]
+#[Signature('gateway:keys:generate {--show : Mostrar las llaves en lugar de escribirlas en .env} {--force : Reemplazar llaves existentes (los datos cifrados con ellas quedarán ilegibles; prohibido en producción)}')]
 #[Description('Genera GATEWAY_VAULT_KEY, GATEWAY_VAULT_PASSWORD_KEY y GATEWAY_BLIND_INDEX_KEY')]
 class GenerateGatewayKeys extends Command
 {
@@ -26,6 +28,12 @@ class GenerateGatewayKeys extends Command
             }
 
             return self::SUCCESS;
+        }
+
+        if ($this->laravel->isProduction() && $this->option('force')) {
+            $this->components->error('En producción no se reemplazan llaves: los datos cifrados con ellas quedarían ilegibles. Para rotarlas, mueva la actual a *_PREVIOUS_KEYS.');
+
+            return self::FAILURE;
         }
 
         if ($this->laravel->isProduction() && ! $this->confirm('Está en producción. ¿Escribir llaves en .env?')) {
