@@ -319,7 +319,7 @@ class FirmaSeguraDriver implements DrivesApiFlow, RegistersRegularRequests, Sign
             ->filter(fn (mixed $observation) => is_array($observation) && filled($observation['message'] ?? null))
             ->map(fn (array $observation) => [
                 'type' => (string) ($observation['type'] ?? 'INFO'),
-                'message' => Str::limit(preg_replace_callback('/\d{10,13}/', fn (array $digits) => '…'.substr($digits[0], -4), (string) $observation['message']), 300),
+                'message' => Str::limit(preg_replace_callback('/(?<![\w-])\d{10,13}(?![\w-])/', fn (array $digits) => '…'.substr($digits[0], -4), (string) $observation['message']), 300),
                 'created_at' => $date($observation['createdAt'] ?? null),
             ])
             ->values()

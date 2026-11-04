@@ -206,10 +206,10 @@ class RegularSignatureFlowTest extends TestCase
         $this->fakeFirmaSegura([
             self::FS_BASE.'/middleware/signature-request/status*' => Http::sequence()
                 ->push($validating(['record' => ['status' => 'MANUALLY_VALIDATING', 'operatorAssignments' => []], 'observations' => [
-                    ['type' => 'WARNING', 'message' => 'Se ha identificado que existe otra solicitud reciente del aplicante 1719429053 con ID: abc', 'createdAt' => '2026-11-03 14:10:37'],
+                    ['type' => 'WARNING', 'message' => 'Se ha identificado que existe otra solicitud reciente del aplicante 1719429053 con ID: 01a1a2a4-cf8b-70bd-8c89-0a4288629611', 'createdAt' => '2026-11-03 14:10:37'],
                 ]]))
                 ->push($validating(['record' => ['status' => 'MANUALLY_VALIDATING', 'operatorAssignments' => []], 'observations' => [
-                    ['type' => 'WARNING', 'message' => 'Se ha identificado que existe otra solicitud reciente del aplicante 1719429053 con ID: abc', 'createdAt' => '2026-11-03 14:10:37'],
+                    ['type' => 'WARNING', 'message' => 'Se ha identificado que existe otra solicitud reciente del aplicante 1719429053 con ID: 01a1a2a4-cf8b-70bd-8c89-0a4288629611', 'createdAt' => '2026-11-03 14:10:37'],
                 ]]))
                 ->push($validating(['record' => ['status' => 'MANUALLY_VALIDATING', 'operatorAssignments' => [
                     ['id' => 'a-1', 'startAssignmentDate' => '2026-11-04 09:15:00', 'operator' => ['id' => 'op-7', 'suspended' => false]],
@@ -225,7 +225,7 @@ class RegularSignatureFlowTest extends TestCase
             ->assertJsonPath('data.provider_review.operator_assigned_at', null)
             ->assertJsonPath('data.provider_review.updated_at', '2026-11-03T19:10:46+00:00')
             ->assertJsonPath('data.provider_review.observations.0.type', 'WARNING')
-            ->assertJsonPath('data.provider_review.observations.0.message', 'Se ha identificado que existe otra solicitud reciente del aplicante …9053 con ID: abc')
+            ->assertJsonPath('data.provider_review.observations.0.message', 'Se ha identificado que existe otra solicitud reciente del aplicante …9053 con ID: 01a1a2a4-cf8b-70bd-8c89-0a4288629611')
             ->assertJsonPath('data.provider_review.observations.0.created_at', '2026-11-03T19:10:37+00:00');
         $this->assertSame(1, $notifications());
 
