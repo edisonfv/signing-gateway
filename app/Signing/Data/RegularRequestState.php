@@ -9,6 +9,7 @@ final readonly class RegularRequestState
 {
     /**
      * @param  array<int, array{code: string, reason: string|null}>  $errors  Errores de validación (A01–A04, D01–D06)
+     * @param  array{operator_assigned_at: string|null, observations: array<int, array{type: string, message: string, created_at: string|null}>, updated_at: string|null}|null  $review  Lo que el proveedor cuenta mientras revisa
      */
     public function __construct(
         public string $requestId,
@@ -17,6 +18,7 @@ final readonly class RegularRequestState
         public array $errors,
         public ?string $automaticCancellationReason,
         public ?string $revocationStatus,
+        public ?array $review = null,
     ) {}
 
     public function errorMessage(): ?string

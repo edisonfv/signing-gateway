@@ -26,7 +26,9 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use LogicException;
+use Throwable;
 
 /**
  * Driver de FirmaSeguraEC.
@@ -36,6 +38,9 @@ use LogicException;
  */
 class FirmaSeguraDriver implements DrivesApiFlow, RegistersRegularRequests, SignatureProvider
 {
+    /** Zona de las fechas sin zona que devuelve el proveedor. */
+    private const PROVIDER_TIMEZONE = 'America/Guayaquil';
+
     private ?ProviderAccount $account = null;
 
     public function name(): string
@@ -276,7 +281,55 @@ class FirmaSeguraDriver implements DrivesApiFlow, RegistersRegularRequests, Sign
             $errors,
             $response->json('validation.record.automaticCancellationReason') ?? $response->json('validation.automaticCancellationReason'),
             $response->json('revocation.status'),
+            $this->review($response),
         );
+    }
+
+    /**
+     * Lo que el proveedor cuenta mientras revisa: si un operador la tomó (`operatorAssignments`), sus
+     * observaciones (p. ej. «otra solicitud reciente del aplicante…») y su última actualización. Las
+     * fechas llegan en hora de Ecuador y sin zona; los números de cédula o RUC se tapan.
+     *
+     * @return array{operator_assigned_at: string|null, observations: array<int, array{type: string, message: string, created_at: string|null}>, updated_at: string|null}
+     */
+    private function review(Response $response): array
+    {
+        $date = function (mixed $value): ?string {
+            if (! is_string($value) || $value === '') {
+                return null;
+            }
+
+            try {
+                return CarbonImmutable::parse($value, self::PROVIDER_TIMEZONE)->utc()->toIso8601String();
+            } catch (Throwable) {
+                return null;
+            }
+        };
+
+        // La documentación las pone en `validation`; el sandbox, en `validation.record`.
+        $assignments = collect($response->json('validation.record.operatorAssignments') ?? $response->json('validation.operatorAssignments') ?? [])
+            ->filter(fn (mixed $assignment) => is_array($assignment));
+        $assignedAt = $assignments->map(fn (array $assignment) => $date($assignment['startAssignmentDate'] ?? null))->filter()->max();
+
+        if ($assignedAt === null && ($assignments->isNotEmpty() || filled($response->json('validation.record.operator.id')))) {
+            $assignedAt = $date($response->json('validation.record.updatedDate')) ?? $date($response->json('timeDetails.requestUpdatedAt')) ?? now()->toIso8601String();
+        }
+
+        $observations = collect($response->json('validation.observations') ?? [])
+            ->filter(fn (mixed $observation) => is_array($observation) && filled($observation['message'] ?? null))
+            ->map(fn (array $observation) => [
+                'type' => (string) ($observation['type'] ?? 'INFO'),
+                'message' => Str::limit(preg_replace_callback('/(?<![\w-])\d{10,13}(?![\w-])/', fn (array $digits) => '…'.substr($digits[0], -4), (string) $observation['message']), 300),
+                'created_at' => $date($observation['createdAt'] ?? null),
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'operator_assigned_at' => $assignedAt,
+            'observations' => $observations,
+            'updated_at' => $date($response->json('request.updatedDate')) ?? $date($response->json('timeDetails.requestUpdatedAt')),
+        ];
     }
 
     /**

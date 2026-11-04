@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ClientNotification;
 use App\Models\SignatureRequest;
 use App\Signing\ApiFlow\SessionReconciler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -197,6 +198,48 @@ class RegularSignatureFlowTest extends TestCase
         $this->signedGet('/api/v1/signature-sessions')->assertJsonPath('data.0.id', $id);
 
         $this->signedGet("/api/v1/signature-sessions/{$id}/certificate")->assertConflict();
+    }
+
+    public function test_the_provider_review_reaches_the_saas_while_the_status_stays_the_same(): void
+    {
+        $validating = fn (array $validation) => ['request' => ['id' => 'fs-regular-1', 'status' => 'VALIDATING', 'updatedDate' => '2026-11-03 14:10:46'], 'validation' => $validation];
+        $this->fakeFirmaSegura([
+            self::FS_BASE.'/middleware/signature-request/status*' => Http::sequence()
+                ->push($validating(['record' => ['status' => 'MANUALLY_VALIDATING', 'operatorAssignments' => []], 'observations' => [
+                    ['type' => 'WARNING', 'message' => 'Se ha identificado que existe otra solicitud reciente del aplicante 1719429053 con ID: 01a1a2a4-cf8b-70bd-8c89-0a4288629611', 'createdAt' => '2026-11-03 14:10:37'],
+                ]]))
+                ->push($validating(['record' => ['status' => 'MANUALLY_VALIDATING', 'operatorAssignments' => []], 'observations' => [
+                    ['type' => 'WARNING', 'message' => 'Se ha identificado que existe otra solicitud reciente del aplicante 1719429053 con ID: 01a1a2a4-cf8b-70bd-8c89-0a4288629611', 'createdAt' => '2026-11-03 14:10:37'],
+                ]]))
+                ->push($validating(['record' => ['status' => 'MANUALLY_VALIDATING', 'operatorAssignments' => [
+                    ['id' => 'a-1', 'startAssignmentDate' => '2026-11-04 09:15:00', 'operator' => ['id' => 'op-7', 'suspended' => false]],
+                ]], 'observations' => []])),
+        ]);
+        $id = $this->signedJson('POST', '/api/v1/signature-sessions', $this->regularPayload(), ['Idempotency-Key' => 'op-1'])->json('data.id');
+        $notifications = fn () => ClientNotification::query()->where('event', 'session.reconciled')->count();
+
+        app(SessionReconciler::class)->reconcile(SignatureRequest::find($id));
+        $this->signedGet("/api/v1/signature-sessions/{$id}")
+            ->assertJsonPath('data.status', 'VALIDATING')
+            ->assertJsonPath('data.provider_review.stage', 'MANUALLY_VALIDATING')
+            ->assertJsonPath('data.provider_review.operator_assigned_at', null)
+            ->assertJsonPath('data.provider_review.updated_at', '2026-11-03T19:10:46+00:00')
+            ->assertJsonPath('data.provider_review.observations.0.type', 'WARNING')
+            ->assertJsonPath('data.provider_review.observations.0.message', 'Se ha identificado que existe otra solicitud reciente del aplicante …9053 con ID: 01a1a2a4-cf8b-70bd-8c89-0a4288629611')
+            ->assertJsonPath('data.provider_review.observations.0.created_at', '2026-11-03T19:10:37+00:00');
+        $this->assertSame(1, $notifications());
+
+        // Nada nuevo: no se avisa otra vez.
+        app(SessionReconciler::class)->reconcile(SignatureRequest::find($id));
+        $this->assertSame(1, $notifications());
+
+        // Un operador la tomó: mismo estado, pero el SaaS se entera.
+        app(SessionReconciler::class)->reconcile(SignatureRequest::find($id));
+        $this->signedGet("/api/v1/signature-sessions/{$id}")
+            ->assertJsonPath('data.status', 'VALIDATING')
+            ->assertJsonPath('data.provider_review.operator_assigned_at', '2026-11-04T14:15:00+00:00')
+            ->assertJsonPath('data.provider_review.observations', []);
+        $this->assertSame(2, $notifications());
     }
 
     public function test_refused_request_is_rejected(): void
