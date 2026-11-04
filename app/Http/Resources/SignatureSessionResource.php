@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\SignatureFlow;
 use App\Models\SignatureRequest;
 use App\Signing\NextAction;
 use Illuminate\Http\Request;
@@ -33,6 +34,13 @@ class SignatureSessionResource extends JsonResource
             'application_type' => $this->application_type->value,
             'period' => $this->period->value,
             'provider_status' => $this->provider_status,
+            // Firmas Regulares: en qué está la revisión del proveedor. Null en el Flujo por API.
+            'provider_review' => $this->flow->equals(SignatureFlow::documentReview()) ? [
+                'stage' => $this->provider_stage,
+                'operator_assigned_at' => $this->provider_review['operator_assigned_at'] ?? null,
+                'observations' => $this->provider_review['observations'] ?? [],
+                'updated_at' => $this->provider_review['updated_at'] ?? null,
+            ] : null,
             'remaining_liveness_attempts' => $this->remaining_liveness_attempts,
             'error' => $this->last_error === null ? null : [
                 'message' => $this->last_error['message'] ?? null,

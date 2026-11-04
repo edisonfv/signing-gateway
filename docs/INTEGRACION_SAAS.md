@@ -424,12 +424,31 @@ Recurso devuelto por todos los endpoints de solicitudes:
   "status": "AWAITING_APPLICANT", "step": "CIVIL_REGISTRY",
   "next_action": { "type": "START_LIVENESS", "method": "POST", "path": "/v1/signature-sessions/uuid/liveness-session" },
   "application_type": "NATURAL_PERSON", "period": "ONE_YEAR",
-  "provider_status": "IN_PROGRESS", "remaining_liveness_attempts": null,
+  "provider_status": "IN_PROGRESS", "provider_review": null, "remaining_liveness_attempts": null,
   "error": { "message": "…", "provider_status": "…", "codes": ["A01"] },
   "certificate_available": false,
   "created_at": "…", "issued_at": null, "delivered_at": null, "closed_at": null
 } }
 ```
+
+**`provider_review` (solo REGULAR, `null` en HEADLESS):** en qué está la revisión del proveedor mientras
+`status` sigue en `VALIDATING`. Cuando cambia, el gateway envía `session.reconciled` aunque el estado no cambie.
+
+```json
+"provider_review": {
+  "stage": "MANUALLY_VALIDATING",
+  "operator_assigned_at": null,
+  "observations": [
+    { "type": "WARNING", "message": "… otra solicitud reciente del aplicante …9053 …", "created_at": "2026-11-03T19:10:37+00:00" }
+  ],
+  "updated_at": "2026-11-03T19:10:46+00:00"
+}
+```
+
+- `stage`: `PENDING`, `AUTOMATICALLY_VALIDATING`, `MANUALLY_VALIDATING` (un operador del proveedor revisa los documentos), `ERROR`, `REFUSED`, `COMPLETED`.
+- `operator_assigned_at`: cuándo un operador tomó la solicitud (`operatorAssignments` del proveedor); `null` mientras espera en la fila. El proveedor no informa quién es.
+- `observations`: notas del proveedor para el operador (p. ej. una solicitud duplicada). No detienen el trámite; los errores que sí lo hacen llegan en `error.codes`. Los números de cédula o RUC llegan tapados (`…9053`).
+- `updated_at`: última vez que el proveedor cambió la solicitud. Las fechas van en UTC.
 
 | `status` | Significado | Acción del SaaS |
 |---|---|---|

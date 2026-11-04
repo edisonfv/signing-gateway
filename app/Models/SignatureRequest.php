@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\DB;
 #[Fillable([
     'tenant_id', 'api_client_id', 'provider_account_id', 'idempotency_key', 'product', 'flow',
     'application_type', 'period', 'status', 'current_step', 'provider_session_id', 'provider_request_id',
-    'provider_status', 'provider_stage', 'identification_hash', 'applicant', 'applicant_password', 'last_error',
+    'provider_status', 'provider_stage', 'provider_review', 'identification_hash', 'applicant', 'applicant_password', 'last_error',
     'remaining_liveness_attempts', 'issued_at', 'delivered_at', 'closed_at',
 ])]
 #[Hidden(['applicant', 'applicant_password', 'identification_hash', 'last_error'])]
@@ -47,6 +47,7 @@ class SignatureRequest extends Model
             'applicant' => 'encrypted:array',
             'applicant_password' => VaultEncrypted::class.':'.KeyRing::VAULT_PASSWORD,
             'last_error' => 'encrypted:array',
+            'provider_review' => 'array',
             'remaining_liveness_attempts' => 'integer',
             'issued_at' => 'datetime',
             'delivered_at' => 'datetime',

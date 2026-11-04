@@ -2930,6 +2930,71 @@
                             "null"
                         ]
                     },
+                    "provider_review": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "Solo REGULAR: en qu\u00e9 est\u00e1 la revisi\u00f3n del proveedor. Null en HEADLESS.",
+                        "properties": {
+                            "stage": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "PENDING, AUTOMATICALLY_VALIDATING, MANUALLY_VALIDATING, ERROR, REFUSED o COMPLETED"
+                            },
+                            "operator_assigned_at": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time",
+                                "description": "Cu\u00e1ndo un operador del proveedor tom\u00f3 la solicitud"
+                            },
+                            "observations": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "description": "C\u00e9dulas y RUC tapados"
+                                        },
+                                        "created_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ],
+                                            "format": "date-time"
+                                        }
+                                    },
+                                    "required": [
+                                        "type",
+                                        "message",
+                                        "created_at"
+                                    ]
+                                }
+                            },
+                            "updated_at": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time",
+                                "description": "\u00daltima actualizaci\u00f3n en el proveedor"
+                            }
+                        },
+                        "required": [
+                            "stage",
+                            "operator_assigned_at",
+                            "observations",
+                            "updated_at"
+                        ]
+                    },
                     "remaining_liveness_attempts": {
                         "type": [
                             "integer",
@@ -3013,6 +3078,7 @@
                     "application_type",
                     "period",
                     "provider_status",
+                    "provider_review",
                     "remaining_liveness_attempts",
                     "error",
                     "certificate_available",
