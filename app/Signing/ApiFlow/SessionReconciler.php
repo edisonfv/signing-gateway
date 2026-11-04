@@ -120,8 +120,12 @@ class SessionReconciler
             'provider_request_id' => $request->provider_request_id ?? ($state->requestId ?: null),
             'provider_status' => $state->status,
             'provider_stage' => $state->validationStatus,
+            'provider_review' => $state->review ?? $request->provider_review,
             'last_reconciled_at' => now(),
-        ])->save();
+        ]);
+        // El SaaS se entera también de lo que cambia sin cambiar el estado: etapa, operador u observaciones.
+        $reviewChanged = $request->isDirty(['provider_stage', 'provider_review']);
+        $request->save();
 
         $target = $state->revocationStatus === RevocationStatus::approved()->value
             ? RequestStatus::revoked()
@@ -136,6 +140,10 @@ class SessionReconciler
             };
 
         if ($target === null || $request->status->equals($target)) {
+            if ($reviewChanged) {
+                $this->notify($request, 'session.reconciled');
+            }
+
             return;
         }
 
@@ -153,6 +161,10 @@ class SessionReconciler
         }
 
         if (! $request->status->canTransitionTo($target)) {
+            if ($reviewChanged) {
+                $this->notify($request, 'session.reconciled');
+            }
+
             return;
         }
 
