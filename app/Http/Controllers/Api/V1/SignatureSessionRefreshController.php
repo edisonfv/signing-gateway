@@ -17,13 +17,14 @@ class SignatureSessionRefreshController extends Controller
      *
      * Consulta bajo demanda el estado de la sesión en el proveedor y corrige el estado local si
      * hace falta. Consume el presupuesto horario de consultas compartido con la reconciliación
-     * automática (cada 10 minutos); si se agotó responde 429.
+     * automática (cada 5 minutos); si se agotó responde 429. Sirve para los dos flujos.
      */
     public function store(SignatureRequest $signatureSession, SessionReconciler $reconciler): SignatureSessionResource
     {
         Gate::authorize('view', $signatureSession);
 
-        abort_if($signatureSession->provider_session_id === null, 409, 'La solicitud aún no tiene sesión en el proveedor.');
+        // Flujo por API: sesión del proveedor; Firmas Regulares: su solicitud.
+        abort_if($signatureSession->provider_session_id === null && $signatureSession->provider_request_id === null, 409, 'La solicitud aún no está registrada en el proveedor.');
 
         return SignatureSessionResource::make($reconciler->reconcile($signatureSession, 'api'));
     }
