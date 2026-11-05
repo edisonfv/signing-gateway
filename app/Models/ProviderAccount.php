@@ -23,7 +23,7 @@ class ProviderAccount extends Model
 
     /**
      * Dónde el proveedor avisa los cambios de una sesión (callbackUrl): la ruta pública de reenvío
-     * de la plataforma, que pasa el aviso tal cual al gateway por el túnel. Null si no está configurada.
+     * de la plataforma, que pasa el aviso tal cual al gateway por la red privada. Null si no está configurada.
      * El token impide que cualquiera golpee la ruta con cuentas al azar; solo el gateway lo conoce.
      */
     public function webhookUrl(): ?string

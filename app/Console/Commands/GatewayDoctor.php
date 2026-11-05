@@ -161,7 +161,7 @@ class GatewayDoctor extends Command
      */
     private function checkOperations(GatewayHealth $health): void
     {
-        $operational = ['scheduler', 'queue:', 'failed-jobs', 'notifications', 'reconcile', 'tracking-budget:'];
+        $operational = ['scheduler', 'queue:', 'failed-jobs', 'notifications', 'reconcile', 'tracking-budget:', 'tls'];
 
         foreach ($health->report()['checks'] as $check) {
             if (! collect($operational)->contains(fn (string $prefix) => str_starts_with($check['key'], $prefix))) {
@@ -185,6 +185,7 @@ class GatewayDoctor extends Command
             $this->check('APP_DEBUG', ! config('app.debug'), 'desactivado', 'activado: expone detalles de errores');
             $this->check('Colas', config('queue.default') !== 'sync', config('queue.default'), 'sync: los jobs no deben correr en la petición');
             $this->check('Caché', config('cache.default') !== 'array', config('cache.default'), 'array: los nonces y avisos no se recuerdan entre peticiones');
+            $this->check('GATEWAY_TLS_PATH', filled(config('gateway.tls.path')), (string) config('gateway.tls.path'), 'vacía: el certificado no viaja con el emparejamiento ni se renueva solo', fatal: false);
         }
     }
 

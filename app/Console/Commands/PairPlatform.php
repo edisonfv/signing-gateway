@@ -16,7 +16,7 @@ class PairPlatform extends Command
         $minutes = max(1, min(60, (int) $this->option('minutes')));
 
         if ($this->laravel->isProduction() && config('gateway.network.allowed_sources') === []) {
-            $this->components->error('Configure GATEWAY_ALLOWED_SOURCES (la IP de la plataforma en el túnel): sin ella la plataforma no puede llegar al gateway.');
+            $this->components->error('Configure GATEWAY_ALLOWED_SOURCES (la IP privada de la plataforma): sin ella la plataforma no puede llegar al gateway.');
 
             return self::FAILURE;
         }

@@ -1,0 +1,28 @@
+#!/bin/bash
+# Atajos de administración del Signing Gateway. bootstrap.sh lo instala como /usr/local/bin/gw.
+# Uso: gw <comando>
+set -e
+APP=/var/www/gateway
+SERVICES="gateway-worker-interactive gateway-worker-general gateway-scheduler"
+cd "$APP"
+
+case "${1:-}" in
+    art)     shift; exec sudo -u gateway php artisan "$@" ;;
+    doctor)  exec sudo -u gateway php artisan gateway:doctor ;;
+    logs)    exec tail -n 50 -f "storage/logs/laravel-$(date +%F).log" ;;
+    status)  for unit in postgresql-17 php-fpm nginx $SERVICES gateway-tls.timer; do
+                 printf '%-28s %s\n' "$unit" "$(systemctl is-active "$unit")"
+             done ;;
+    restart) sudo -u gateway php artisan queue:restart && systemctl restart $SERVICES && systemctl reload php-fpm && echo "reiniciado" ;;
+    failed)  exec sudo -u gateway php artisan queue:failed ;;
+    tls)     exec /usr/local/sbin/gateway-tls-rotate --status ;;
+    deploy)  sudo -u gateway -H git pull --ff-only \
+                 && sudo -u gateway -H composer install --no-dev --optimize-autoloader --no-interaction \
+                 && sudo -u gateway php artisan migrate --force \
+                 && sudo -u gateway php artisan optimize \
+                 && sudo -u gateway php artisan queue:restart \
+                 && systemctl reload php-fpm \
+                 && sudo -u gateway php artisan gateway:doctor ;;
+    env)     grep -vE '^(APP_KEY|GATEWAY_.*KEY|DB_PASSWORD)=' .env ;;
+    *)       echo "Uso: gw {art <comando>|doctor|logs|status|restart|failed|tls|deploy|env}"; exit 1 ;;
+esac

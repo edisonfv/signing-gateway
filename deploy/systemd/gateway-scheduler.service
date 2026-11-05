@@ -1,0 +1,15 @@
+[Unit]
+Description=Gateway scheduler
+After=network-online.target postgresql-17.service
+Wants=network-online.target
+
+[Service]
+User=gateway
+Group=gateway
+WorkingDirectory=/var/www/gateway
+ExecStart=/usr/bin/php artisan schedule:work
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
