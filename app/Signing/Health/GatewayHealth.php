@@ -8,6 +8,7 @@ use App\Models\ClientNotification;
 use App\Models\Heartbeat;
 use App\Models\PersonalAccessToken;
 use App\Models\ProviderAccount;
+use App\Security\TlsTrust;
 use App\Signing\ApiFlow\TrackingBudget;
 use App\Signing\EmissionGuard;
 use Carbon\CarbonImmutable;
@@ -32,6 +33,7 @@ class GatewayHealth
     public function __construct(
         private TrackingBudget $budget,
         private EmissionGuard $emissionGuard,
+        private TlsTrust $tls,
     ) {}
 
     /**
@@ -48,6 +50,7 @@ class GatewayHealth
             $this->reconciliation(),
             $this->emission(),
             $this->platformCredential(),
+            ...$this->tls(),
             $this->ledger(),
         ];
 
@@ -110,7 +113,7 @@ class GatewayHealth
         $stuck = ClientNotification::query()->whereNull('delivered_at')->whereNull('failed_at')->where('created_at', '<=', now()->subMinutes(15))->count();
 
         return match (true) {
-            $failed > 0 => $this->warn('notifications', 'Notificaciones a la plataforma', "{$failed} fallidas en la última hora", 'Revise que la URL de notificaciones de la plataforma responda por el túnel.'),
+            $failed > 0 => $this->warn('notifications', 'Notificaciones a la plataforma', "{$failed} fallidas en la última hora", 'Revise que la URL de notificaciones de la plataforma responda (dominio de GATEWAY_NOTIFICATION_HOSTS).'),
             $stuck > 0 => $this->warn('notifications', 'Notificaciones a la plataforma', "{$stuck} pendientes hace más de 15 minutos", 'La plataforma no está aceptando los avisos: se siguen reintentando.'),
             default => $this->ok('notifications', 'Notificaciones a la plataforma', 'Al día'),
         };
@@ -215,6 +218,39 @@ class GatewayHealth
         return $days < 30
             ? $this->warn('platform-credential', 'Credencial de alta de la plataforma', "Vence en {$days} días ({$token->expires_at->toDateString()})", 'La plataforma debe renovarla: POST /v1/admin/provisioning-credential.')
             : $this->ok('platform-credential', 'Credencial de alta de la plataforma', "Vence el {$token->expires_at->toDateString()}");
+    }
+
+    /**
+     * Vencimiento del certificado de la API y del cambio al siguiente (deploy/tls-rotate.sh). Sin
+     * comprobación si el gateway no administra su certificado.
+     *
+     * @return array<int, array{key: string, label: string, status: string, detail: string, hint: string|null}>
+     */
+    private function tls(): array
+    {
+        if (! $this->tls->isManaged()) {
+            return [];
+        }
+
+        $label = 'Certificado TLS de la API';
+        $current = $this->tls->current();
+
+        if ($current === null) {
+            return [$this->fail('tls', $label, 'No hay certificado vigente', 'Ejecute deploy/tls-rotate.sh como root.')];
+        }
+
+        $expiresAt = $current['expires_at'];
+        $days = (int) now()->diffInDays($expiresAt, false);
+        $next = $this->tls->next();
+
+        return [match (true) {
+            $days < 7 => $this->fail('tls', $label, $days < 0 ? "Vencido el {$expiresAt->toDateString()}" : "Vence en {$days} días ({$expiresAt->toDateString()})", $next !== null && ! $this->tls->isNextAcknowledged()
+                ? 'La plataforma no ha descargado el siguiente (GET /v1/platform/tls): revise su sincronización diaria.'
+                : 'Revise el timer gateway-tls (systemctl status gateway-tls.timer).'),
+            $next === null && $days < 30 => $this->warn('tls', $label, "Vence en {$days} días y aún no hay siguiente", 'Revise el timer gateway-tls (systemctl status gateway-tls.timer).'),
+            $next !== null && ! $this->tls->isNextAcknowledged() && $days < 20 => $this->warn('tls', $label, "Vence en {$days} días; la plataforma aún no descargó el siguiente", 'La plataforma debe consultar GET /v1/platform/tls a diario.'),
+            default => $this->ok('tls', $label, "Vence el {$expiresAt->toDateString()}".($next !== null ? '; siguiente listo' : '')),
+        }];
     }
 
     private function ledger(): array

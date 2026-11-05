@@ -27,14 +27,17 @@ Hoy integra **FirmaSeguraEC**; está diseñado para añadir otros proveedores si
 ## 2. Topología
 
 ```
-                 WireGuard (solo IP de la plataforma)          Salida solo a api.firmaseguraec.com
+               Red privada (solo IP de la plataforma)          Salida solo a api.firmaseguraec.com
 [SaaS / Plesk] ─────────────────────────────► [Gateway] ───────────────────────────────────────► [FirmaSegura]
-   ▲    ▲    API interna :8443 (wg0)              │                                                  │
-   │    └──── notificaciones firmadas ────────────┘                                                  │
-   └──────── avisos del proveedor: /provider-webhooks/... (la SaaS los reenvía por el túnel) ◄───────┘
+   ▲    ▲    API interna https://10.20.0.1:8443   │                                                  │
+   │    └──── notificaciones firmadas (HTTPS al dominio de la plataforma) ┘                          │
+   └──────── avisos del proveedor: /provider-webhooks/... (la SaaS los reenvía por la red privada) ◄─┘
 ```
 
-- **Una sola superficie HTTP**: la API interna, en la interfaz del túnel. El gateway **no se expone a
+> 2026-11-05: el túnel WireGuard se reemplazó por una red privada (VNet de Proxmox; vale también vRack o
+> túnel) y el certificado de la API viaja con el emparejamiento. Ver §20.
+
+- **Una sola superficie HTTP**: la API interna, solo para la IP privada de la plataforma. El gateway **no se expone a
   internet**: los avisos del proveedor llegan a la ruta pública de la plataforma, que los reenvía sin
   interpretarlos a `POST /v1/platform/provider-events/...` (rediseño 2026-11-02, ver §17).
 - Defensa en profundidad: además del firewall, la aplicación rechaza orígenes fuera de
@@ -893,3 +896,27 @@ los workers del gateway se caen, sus avisos también, y una consulta sin respues
   atascadas, proveedor y su cupo de consultas (aviso desde el 80 %), reconciliación (falla tras 15
   minutos), freno de emisión, credencial de alta (aviso a 30 días) y registro de emisiones.
   `gateway:doctor` muestra los indicadores operativos como avisos.
+
+---
+
+## 20. Red privada, certificado por emparejamiento y puesta en marcha 2026-11-05
+
+- **Red privada en lugar del túnel.** El gateway y la plataforma se comunican por una red privada; cómo
+  se construye (VNet de Proxmox, vRack o túnel) queda fuera del gateway. Contrato: IP privada del gateway
+  e IP privada de la plataforma. La zona `privada` de firewalld se asocia a la **IP de la plataforma**
+  (`--add-source`), no a una interfaz, y abre 8443 y SSH. Las notificaciones salen por HTTPS al dominio
+  público de la plataforma (`GATEWAY_NOTIFICATION_HOSTS`), con su certificado de Let's Encrypt.
+- **Certificado de la API sin copias.** `deploy/tls-rotate.sh` (root, `gateway-tls.timer` diario) mantiene
+  `current.crt` y, desde 30 días antes de vencer, `next.crt` en `GATEWAY_TLS_PATH` (`/etc/gateway/tls`,
+  etiqueta SELinux `cert_t`). `TlsTrust` solo lee los certificados (la llave privada es de root):
+  `POST /v1/pair` los entrega en `tls_certificates` y `GET /v1/platform/tls` (credencial de alta o de
+  servicio) los devuelve con huella y vencimiento. Al descargarse el siguiente se escribe su huella en
+  `storage/app/private/tls-next-ack`; recién entonces el script cambia a él y recarga nginx (o el último
+  día, para no quedar vencido). `--rotate` crea el siguiente ya (p. ej. al cambiar la IP privada).
+- **Salud.** Comprobación `tls` en `GatewayHealth` y `gateway:doctor`: aviso a 30 días sin siguiente o a
+  20 días si la plataforma no lo descargó; falla a 7 días o vencido. Sin `GATEWAY_TLS_PATH` no hay
+  comprobación, y `gateway:doctor` avisa en producción.
+- **Puesta en marcha.** `deploy/bootstrap.sh` (idempotente) instala todo en AlmaLinux 9 sobre el
+  prerrequisito de red: paquetes, PostgreSQL en su partición, código por llave de despliegue, `.env`,
+  certificado, nginx, PHP-FPM, SELinux, firewall, `gateway:install`, servicios y `gw`. Ver
+  `docs/INSTALACION_SERVIDOR.md`.

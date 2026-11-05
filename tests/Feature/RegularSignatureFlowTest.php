@@ -242,6 +242,21 @@ class RegularSignatureFlowTest extends TestCase
         $this->assertSame(2, $notifications());
     }
 
+    public function test_the_saas_can_ask_the_provider_on_demand(): void
+    {
+        $this->fakeFirmaSegura([
+            self::FS_BASE.'/middleware/signature-request/status*' => Http::response([
+                'request' => ['id' => 'fs-regular-1', 'status' => 'VALIDATING'], 'validation' => ['record' => ['status' => 'MANUALLY_VALIDATING']],
+            ]),
+        ]);
+        $id = $this->signedJson('POST', '/api/v1/signature-sessions', $this->regularPayload(), ['Idempotency-Key' => 'op-1'])->json('data.id');
+
+        $this->signedJson('POST', "/api/v1/signature-sessions/{$id}/refresh")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'VALIDATING')
+            ->assertJsonPath('data.provider_review.stage', 'MANUALLY_VALIDATING');
+    }
+
     public function test_refused_request_is_rejected(): void
     {
         $this->fakeFirmaSegura([

@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\PingController;
 use App\Http\Controllers\Api\V1\Platform\HealthController;
 use App\Http\Controllers\Api\V1\Platform\ProductController as PlatformProductController;
 use App\Http\Controllers\Api\V1\Platform\ProviderEventController;
+use App\Http\Controllers\Api\V1\Platform\TlsController as PlatformTlsController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProvinceCityController;
 use App\Http\Controllers\Api\V1\ProvinceController;
@@ -66,6 +67,11 @@ Route::prefix('v1')
             Route::get('issuances', [AdminIssuanceController::class, 'index'])->name('issuances.index');
             Route::get('issuances/summary', [AdminIssuanceController::class, 'summary'])->name('issuances.summary');
         });
+
+        // Certificados de confianza de la API: cualquiera de las dos credenciales de la plataforma.
+        Route::middleware('ability:'.PermissionName::clientsManage()->value.','.PermissionName::platformService()->value)
+            ->get('platform/tls', [PlatformTlsController::class, 'show'])
+            ->name('platform.tls.show');
 
         // Credencial de servicio de la plataforma: catálogo completo y reenvío de avisos del proveedor.
         Route::middleware('abilities:'.PermissionName::platformService()->value)->prefix('platform')->name('platform.')->group(function () {
