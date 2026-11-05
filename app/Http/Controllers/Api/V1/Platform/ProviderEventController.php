@@ -22,7 +22,7 @@ class ProviderEventController extends Controller
      * Reenviar un aviso del proveedor
      *
      * El proveedor avisa en la ruta pública de la plataforma (callbackUrl) y la plataforma reenvía
-     * aquí, por el túnel, el cuerpo tal cual y los mismos `{provider}/{account}/{token}` de la ruta,
+     * aquí, por la red privada, el cuerpo tal cual y los mismos `{provider}/{account}/{token}` de la ruta,
      * sin interpretarlo. Así el gateway no se expone a internet.
      *
      * El aviso nunca cambia un estado: solo adelanta la reconciliación de esa sesión, que consulta

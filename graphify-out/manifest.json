@@ -195,8 +195,8 @@
     "semantic_hash": "27329b86a26ce44ea65ec78b5964167e"
   },
   "app/Models/ProviderAccount.php": {
-    "mtime": 1793749329.2855902,
-    "ast_hash": "47a3746294f3d291b7173d307d0a4e2d",
+    "mtime": 1793894955.7431102,
+    "ast_hash": "2812a814877c6661e4bfe90a8942650a",
     "semantic_hash": ""
   },
   "app/Models/Province.php": {
@@ -435,8 +435,8 @@
     "semantic_hash": ""
   },
   "config/gateway.php": {
-    "mtime": 1793828362.2769034,
-    "ast_hash": "a650357c3ca32221251e3e55fa4e2fde",
+    "mtime": 1793894955.7806368,
+    "ast_hash": "ba784b8df66570b5549fdba178afc18c",
     "semantic_hash": ""
   },
   "config/logging.php": {
@@ -570,8 +570,8 @@
     "semantic_hash": "1a03818ea91deb4f3989c6c994e5867c"
   },
   "routes/api.php": {
-    "mtime": 1793749329.3036916,
-    "ast_hash": "21b37e3739f76f3c2ffb5ba9c8b7d94a",
+    "mtime": 1793894570.307683,
+    "ast_hash": "252e23294d7acd1cd60797de467abed2",
     "semantic_hash": ""
   },
   "routes/console.php": {
@@ -640,8 +640,8 @@
     "semantic_hash": ""
   },
   "docs/ARQUITECTURA.md": {
-    "mtime": 1793749329.2976868,
-    "ast_hash": "9402c7354a0abf7a42853ddca8b5e755",
+    "mtime": 1793895018.3199184,
+    "ast_hash": "c6fd39576d70a3303ade872053cee605",
     "semantic_hash": ""
   },
   "app/Actions/CreateSignatureSession.php": {
@@ -1140,8 +1140,8 @@
     "semantic_hash": ""
   },
   "app/Http/Controllers/Api/V1/Platform/ProviderEventController.php": {
-    "mtime": 1793749329.2767146,
-    "ast_hash": "715eca8820df9df3120796759ddff1b3",
+    "mtime": 1793894955.723075,
+    "ast_hash": "b954cee81306c5b9f82f23218c1d4a79",
     "semantic_hash": ""
   },
   "app/Http/Middleware/RestrictSourceNetwork.php": {
@@ -1195,8 +1195,8 @@
     "semantic_hash": ""
   },
   "docs/INSTRUCCIONES_PLATAFORMA.md": {
-    "mtime": 1793749329.2976868,
-    "ast_hash": "f7102c8f203f73261a03e953271c213f",
+    "mtime": 1793894998.6028056,
+    "ast_hash": "4b0c6270ba528aa98bba1e6af69308ed",
     "semantic_hash": ""
   },
   "app/Actions/PairPlatform.php": {
@@ -1205,8 +1205,8 @@
     "semantic_hash": ""
   },
   "app/Console/Commands/GatewayDoctor.php": {
-    "mtime": 1793749329.2661629,
-    "ast_hash": "f1f11feceb2994b45a35ceddf6a3615f",
+    "mtime": 1793894591.0982442,
+    "ast_hash": "ff86885b38d26da7283ba51458813d0f",
     "semantic_hash": ""
   },
   "app/Console/Commands/InstallGateway.php": {
@@ -1215,13 +1215,13 @@
     "semantic_hash": ""
   },
   "app/Console/Commands/PairPlatform.php": {
-    "mtime": 1793749329.2679162,
-    "ast_hash": "c05286d2e5fd2b8c7b2ca622529f5098",
+    "mtime": 1793894955.7039375,
+    "ast_hash": "c4f5a5255ffa8919c85533fed9f6433a",
     "semantic_hash": ""
   },
   "app/Http/Controllers/Api/V1/PairingController.php": {
-    "mtime": 1793749329.275472,
-    "ast_hash": "c44df64d7ea66deeaad9d26482cbdca8",
+    "mtime": 1793894567.4363468,
+    "ast_hash": "08a186b998c15ef25cda06bb9c79e453",
     "semantic_hash": ""
   },
   "app/Models/PairingCode.php": {
@@ -1275,8 +1275,8 @@
     "semantic_hash": ""
   },
   "app/Signing/Health/GatewayHealth.php": {
-    "mtime": 1793749329.290261,
-    "ast_hash": "449b6c5c4933c69b71b6fdf5117669dc",
+    "mtime": 1793894955.7614932,
+    "ast_hash": "8fa6e37ca31fda53eac38b68a46b7f79",
     "semantic_hash": ""
   },
   "database/migrations/2026_11_03_164234_create_heartbeats_table.php": {
@@ -1302,6 +1302,41 @@
   "tests/Feature/StrictIdentificationConfigTest.php": {
     "mtime": 1793828343.5871668,
     "ast_hash": "8d8755bdf526b50432ffd718addae1b0",
+    "semantic_hash": ""
+  },
+  "app/Http/Controllers/Api/V1/Platform/TlsController.php": {
+    "mtime": 1793894567.4736085,
+    "ast_hash": "85c98afa0e6aebb6ad100905fb0de50b",
+    "semantic_hash": ""
+  },
+  "app/Security/TlsTrust.php": {
+    "mtime": 1793894550.2203355,
+    "ast_hash": "262dde1f8c35afc9490bfc8a4a824bdf",
+    "semantic_hash": ""
+  },
+  "deploy/bootstrap.sh": {
+    "mtime": 1793894874.1300414,
+    "ast_hash": "17d22cd9c4990644e367a25654afeeab",
+    "semantic_hash": ""
+  },
+  "deploy/gw": {
+    "mtime": 1793894762.7582738,
+    "ast_hash": "b89c7f2d843c90edbb6e3e7ddca906f4",
+    "semantic_hash": ""
+  },
+  "deploy/tls-rotate.sh": {
+    "mtime": 1793894762.7277086,
+    "ast_hash": "4da7dc02ec8308794bda56bb1b2bc9cf",
+    "semantic_hash": ""
+  },
+  "tests/Feature/PlatformTlsTrustTest.php": {
+    "mtime": 1793894641.0208747,
+    "ast_hash": "130913f70c6c8473886324829c5e981c",
+    "semantic_hash": ""
+  },
+  "docs/INSTALACION_SERVIDOR.md": {
+    "mtime": 1793895066.3097844,
+    "ast_hash": "9ae0fca6ddd979c196ea6a2968dcc202",
     "semantic_hash": ""
   }
 }

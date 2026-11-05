@@ -4,10 +4,29 @@ Tareas para `signature-saas` tras el endurecimiento del gateway (2026-11-02). Re
 API: `docs/INTEGRACION_SAAS.md`. Los nombres de clases son los actuales de `Modules/Gateway` y
 `Modules/Catalog`.
 
-**Objetivo:** el gateway solo habla con la plataforma (por el túnel) y con FirmaSegura. Nada de él queda
-en internet. El operador configura una sola credencial; todo lo demás lo hace la plataforma.
+**Objetivo:** el gateway solo habla con la plataforma (por la red privada) y con FirmaSegura. Nada de él
+queda en internet. El operador configura una sola credencial; todo lo demás lo hace la plataforma.
+
+> Actualizado 2026-11-05: la comunicación ya no es por túnel WireGuard sino por una **red privada** (punto 0),
+> y el certificado de la API **viaja con el emparejamiento** (punto 1.1): no se copia ningún archivo.
 
 ---
+
+## 0. Requisito de red (antes de todo)
+
+La plataforma y el gateway se comunican por una **red privada**. Cómo se construye no le importa a
+ninguno de los dos: VNet de Proxmox (lo actual, `gwnet`), vRack de OVH o un túnel. El contrato es:
+
+| Dato | Ejemplo | Dónde se usa |
+|---|---|---|
+| IP privada del gateway | `10.20.0.1` | URL del gateway en la plataforma: `https://10.20.0.1:8443` |
+| IP privada de la plataforma | `10.20.0.2` | `GATEWAY_ALLOWED_SOURCES` en el gateway y firewall del gateway |
+
+- En el servidor de la plataforma la IP privada es solo configuración de red del sistema operativo; en
+  Plesk, «Reread IP» y **no** asignarla a ningún dominio.
+- Prueba desde la plataforma: `curl -sk https://10.20.0.1:8443/up` → `200`.
+- Las llamadas de la plataforma al gateway salen desde la IP privada (el sistema la usa sola al ir a la
+  red `10.20.0.0/24`). Si salen desde otra IP, el gateway responde `403`.
 
 ## 1. Ficha del proveedor: URL y código de emparejamiento
 
@@ -18,8 +37,12 @@ genera el operador con `php artisan gateway:pair`), con un botón **«Emparejar�
 Al emparejar:
 
 1. `POST {url}/v1/pair` con `{"code": "..."}` (sin token ni firma). Respuesta `201`:
-   `{client, token, signing_secret, token_expires_at}` = **credencial de alta**. `422` = código inválido,
-   usado o vencido (pedir uno nuevo); `403` = la IP de la plataforma no está en `GATEWAY_ALLOWED_SOURCES`.
+   `{client, token, signing_secret, token_expires_at, tls_certificates}` = **credencial de alta** y los
+   certificados en los que confiar (punto 1.1). `422` = código inválido, usado o vencido (pedir uno nuevo);
+   `403` = la IP de la plataforma no está en `GATEWAY_ALLOWED_SOURCES`.
+
+   Esta es la **única** llamada sin verificación TLS (aún no se conoce el certificado): solo por la red
+   privada y con el código de un solo uso. Guardar `tls_certificates` antes de cualquier otra llamada.
 2. Guardarla cifrada en `Provider::credentials['provisioning']` y probarla con `GET /v1/ping`
    (responde `platform: true`).
 3. Con ella, emitir la **credencial de servicio**: `POST /v1/admin/platform-credential` →
@@ -41,6 +64,30 @@ se tocan, sus credenciales siguen igual.
   Si la renovación falla, avisar al staff cada día (como hoy con los afiliados). `php artisan gateway:doctor`
   también avisa en el gateway cuando a la credencial de alta le quedan menos de 30 días.
 
+### 1.1 Certificado de la API: viaja con el emparejamiento
+
+El gateway se presenta con un certificado propio (no de una autoridad pública). La plataforma confía
+**solo** en los certificados que el gateway le entrega; nadie copia archivos y **nunca** se desactiva la
+verificación TLS (salvo en el `POST /v1/pair` del punto 1).
+
+- **Guardar:** en el registro del proveedor, junto a las credenciales: `Provider::credentials['tls'] =
+  ['certificates' => [pem, …], 'synced_at' => …]`. Los certificados son públicos (no hace falta cifrarlos,
+  pero sí que nadie los cambie); la llave privada nunca sale del gateway.
+- **Usar:** el cliente HTTP necesita un archivo. Escribir los PEM concatenados en
+  `storage/app/private/gateway-trust.pem` cuando cambien (si el archivo no existe, regenerarlo desde la base)
+  y llamar con `Http::withOptions(['verify' => storage_path('app/private/gateway-trust.pem')])`.
+- **Mantener al día:** una vez al día (`gateway:sync-tls` en el scheduler de la plataforma),
+  `GET /v1/platform/tls` con la credencial de servicio (o la de alta). Respuesta:
+  ```json
+  { "certificates": [ { "pem": "-----BEGIN CERTIFICATE-----…", "fingerprint": "783a61…", "expires_at": "2027-11-05T16:08:04+00:00" } ] }
+  ```
+  **Reemplazar** la lista guardada por la recibida y reescribir el archivo. Desde 30 días antes de vencer,
+  la lista trae dos certificados (el vigente y el siguiente); el gateway cambia al siguiente solo después
+  de que la plataforma lo descargó, así que la conexión no se corta.
+- Si la sincronización falla, se ve en el monitor (punto 8): la comprobación `tls` «Certificado TLS de la
+  API» pasa a aviso cuando faltan 20 días y a falla cuando faltan 7.
+- Emparejar de nuevo también entrega los certificados vigentes.
+
 ## 2. Catálogo con la credencial de servicio
 
 - `GatewayCatalog` (o donde se lea el catálogo de la plataforma) pasa a `GET /v1/platform/products` con la
@@ -50,7 +97,7 @@ se tocan, sus credenciales siguen igual.
 
 ## 3. Reenvío de los avisos del proveedor (nuevo)
 
-FirmaSegura avisa a la plataforma; la plataforma reenvía al gateway por el túnel, **sin leer el aviso**.
+FirmaSegura avisa a la plataforma; la plataforma reenvía al gateway por la red privada, **sin leer el aviso**.
 
 **Ruta pública** (dominio central, no el del afiliado), fuera de los middlewares de sesión y CSRF:
 
@@ -80,23 +127,26 @@ Route::post('provider-webhooks/{provider}/{account}/{token}', ProviderWebhookRel
 
 **Configuración en el gateway:** `GATEWAY_WEBHOOK_URL=https://<dominio central>/provider-webhooks`.
 
-## 4. Una sola URL de notificaciones (por el túnel)
+## 4. Una sola URL de notificaciones (dominio central)
 
 **Hoy:** `GatewayProvisioning::notificationUrl()` usa el dominio del afiliado. Eso obliga al gateway a salir
 a internet hacia cada dominio, y el gateway ya no lo permite (`GATEWAY_NOTIFICATION_HOSTS`).
 
 **Cambio:**
 
-- `notificationUrl()` devuelve **una URL central**, accesible por el túnel, p. ej.
-  `https://plataforma.interno/webhooks/signing-gateway` (config `services.signing_gateway.notification_url`).
+- `notificationUrl()` devuelve **una URL central** en el dominio público de la plataforma, con su
+  certificado de Let's Encrypt de Plesk: `https://express.com.ec/webhooks/signing-gateway` (config
+  `services.signing_gateway.notification_url`). Debe responder **sin redirecciones** (el gateway no las sigue).
 - El controlador de notificaciones pasa a ser central. Cada aviso trae ahora `tenant` (external_id) y
   `client` (uuid de la credencial):
   1. Buscar el afiliado por `tenant` y, dentro de él, la `GatewayCredential` vigente.
   2. Verificar `X-Gateway-Signature` con el `notification_secret` de **esa** credencial (y la ventana
      de `X-Gateway-Timestamp`) **antes** de procesar nada.
   3. Procesar el evento dentro del contexto del afiliado (`$tenant->run(...)`), como hoy.
+- Opcional, defensa adicional: aceptar esa ruta solo desde la IP pública del gateway (en el código o en
+  las directivas nginx del dominio en Plesk, probando desde otra IP que responda `403`).
 - Volver a conectar a los afiliados existentes («Renovar credencial») para que sus credenciales tengan la URL nueva.
-- **En el gateway:** `GATEWAY_NOTIFICATION_HOSTS=plataforma.interno`.
+- **En el gateway:** `GATEWAY_NOTIFICATION_HOSTS=express.com.ec`.
 
 ## 5. Alta de afiliados sin credenciales huérfanas
 
@@ -201,7 +251,7 @@ tarjeta de acción primero.
     Detalle, Desde (`useDateTime`). En las filas que no están bien, el `hint` debajo del detalle con `ui.help`.
   - Grupos con un separador ligero: «Procesos» (scheduler, colas, jobs fallidos, reconciliación),
     «Proveedor» (FirmaSegura y su cupo de consultas), «Avisos y seguridad» (notificaciones, emisión,
-    credencial de alta, registro de emisiones). Dentro de cada grupo: fallas, avisos y lo que está bien.
+    credencial de alta, certificado TLS de la API, registro de emisiones). Dentro de cada grupo: fallas, avisos y lo que está bien.
   - «Incidentes»: listado paginado (`Pagination`) con comprobación, estado, inicio, fin y duración;
     filtro «Abiertos · Todos».
 - **Derecha**, tarjeta «Qué hacer ahora» (`xl:sticky`, pie `border-t bg-ink-50`): cada problema con su
@@ -241,17 +291,18 @@ absoluta a la pantalla.
 
 | Variable | Valor |
 |---|---|
-| `GATEWAY_ALLOWED_SOURCES` | IP de la plataforma en el túnel (p. ej. `10.8.0.2`). Sin ella la API rechaza todo |
-| `GATEWAY_NOTIFICATION_HOSTS` | Host central de notificaciones (p. ej. `plataforma.interno`) |
-| `GATEWAY_WEBHOOK_URL` | `https://<dominio central>/provider-webhooks` |
+| `GATEWAY_ALLOWED_SOURCES` | IP privada de la plataforma (p. ej. `10.20.0.2`). Sin ella la API rechaza todo |
+| `GATEWAY_NOTIFICATION_HOSTS` | Dominio central de notificaciones (`express.com.ec`) |
+| `GATEWAY_WEBHOOK_URL` | `https://express.com.ec/provider-webhooks` |
+| `GATEWAY_TLS_PATH` | `/etc/gateway/tls` (lo pone `deploy/bootstrap.sh`): el certificado viaja con el emparejamiento |
 
-Firewall del gateway: entrada **solo** por el túnel desde la plataforma; salida solo a FirmaSegura, a la
-plataforma (túnel), DNS, NTP y actualizaciones. Ya no hace falta abrir el 443 a internet.
+Firewall del gateway: entrada **solo** desde la IP privada de la plataforma (8443 y SSH); salida a
+FirmaSegura, al dominio de la plataforma, DNS, NTP y actualizaciones. Nada abierto a internet.
 
 ## Orden sugerido
 
-1. Puntos 3 y 4 (reenvío y URL central), porque cambian la red. Desplegarlos junto con las variables del punto 9.
-2. Puntos 1 y 2 (emparejamiento y credencial de servicio).
+1. Punto 0 (red privada) y puntos 3 y 4 (reenvío y URL central). Desplegarlos junto con las variables del punto 9.
+2. Puntos 1, 1.1 y 2 (emparejamiento, certificado y credencial de servicio).
 3. Punto 8 (monitor y alertas): en cuanto exista la credencial de servicio, para ver el gateway desde el primer día.
 4. Punto 5 (idempotencia).
 5. Punto 6 (suspensión).

@@ -54,7 +54,7 @@ return [
     ],
 
     'network' => [
-        // IPs o CIDR desde los que se acepta la API (la IP de la plataforma en el túnel), separados por coma.
+        // IPs o CIDR desde los que se acepta la API (la IP privada de la plataforma), separados por coma.
         // En producción es obligatoria: sin ella la API rechaza todo, aunque el firewall o nginx fallen.
         'allowed_sources' => array_values(array_filter(array_map('trim', explode(',', (string) env('GATEWAY_ALLOWED_SOURCES', ''))))),
 
@@ -65,6 +65,16 @@ return [
         // Certificado (o paquete de CA) en el que se confía al notificar, en vez de los del sistema.
         // Para una CA privada o el certificado autofirmado de un entorno local; nunca se desactiva la verificación.
         'notification_ca' => env('GATEWAY_NOTIFICATION_CA') ?: null,
+    ],
+
+    'tls' => [
+        // Carpeta con los certificados de la API interna (current.crt y, antes de vencer, next.crt), que
+        // genera y rota deploy/tls-rotate.sh. La plataforma los recibe al emparejar y en GET /v1/platform/tls.
+        // Vacía: el gateway no administra su certificado (p. ej. en local).
+        'path' => env('GATEWAY_TLS_PATH') ?: null,
+
+        // Huella del next.crt que la plataforma ya descargó: deploy/tls-rotate.sh solo cambia a él después.
+        'ack_file' => storage_path('app/private/tls-next-ack'),
     ],
 
     'limits' => [
@@ -89,7 +99,7 @@ return [
 
     'webhooks' => [
         // Ruta pública de REENVÍO en la plataforma (https://app.midominio.com/provider-webhooks): el
-        // proveedor avisa ahí y la plataforma pasa el aviso al gateway por el túnel. El gateway no
+        // proveedor avisa ahí y la plataforma pasa el aviso al gateway por la red privada. El gateway no
         // queda expuesto a internet. Sin ella no se envía callbackUrl: los cambios llegan por la reconciliación.
         'url' => env('GATEWAY_WEBHOOK_URL'),
     ],

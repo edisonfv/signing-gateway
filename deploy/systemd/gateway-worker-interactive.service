@@ -1,0 +1,15 @@
+[Unit]
+Description=Gateway worker (cola interactive)
+After=network-online.target postgresql-17.service
+Wants=network-online.target
+
+[Service]
+User=gateway
+Group=gateway
+WorkingDirectory=/var/www/gateway
+ExecStart=/usr/bin/php artisan queue:work database --queue=interactive --sleep=1 --max-time=3600
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

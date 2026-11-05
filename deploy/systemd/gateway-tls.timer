@@ -1,0 +1,10 @@
+[Unit]
+Description=Gateway: revisión diaria del certificado TLS de la API
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

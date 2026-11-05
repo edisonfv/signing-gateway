@@ -1,0 +1,6 @@
+[Unit]
+Description=Gateway: genera y rota el certificado TLS de la API
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/gateway-tls-rotate
