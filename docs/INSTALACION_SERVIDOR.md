@@ -6,6 +6,8 @@ script** (`deploy/bootstrap.sh`) y **(C) emparejar** con la plataforma. Fecha: 2
 > **Nunca** pegues el `.env`, las llaves ni tokens en chats, tickets o correos. Para revisar la
 > configuración sin secretos: `gw env`.
 
+> Para el día a día (comandos, tareas de Plesk y qué hacer si algo falla): [OPERACION.md](OPERACION.md).
+
 ---
 
 ## 0. Datos de la instalación
